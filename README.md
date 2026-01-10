@@ -1,4 +1,4 @@
-# magic-proxy
+<img src=".github/img/splash.jpeg">
 
 magic-proxy automatically configures your proxy by reading `x-magic-proxy-descriptor` fields embedded in docker compose files, allowing you to simply bring the compose up and trust that your proxy will automatically configure itself without user intervention. 
 
