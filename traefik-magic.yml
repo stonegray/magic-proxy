@@ -1,0 +1,18 @@
+http:
+  routers:
+    custom-custom:
+      rule: Host(`custom`)
+      service: svc-custom
+    custom-service:
+      rule: Host(`service`)
+      service: svc-service
+  services:
+    svc-custom:
+      loadBalancer:
+        servers:
+          - url: http://custom:9000
+    svc-service:
+      loadBalancer:
+        servers:
+          - url: http://service:7000
+  middlewares: {}

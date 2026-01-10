@@ -1,0 +1,4 @@
+x-magic-proxy:
+  template: default
+  target: http://app1.internal:3000
+  hostname: example.local

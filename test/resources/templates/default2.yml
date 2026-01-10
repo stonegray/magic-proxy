@@ -1,0 +1,12 @@
+http:
+  routers:
+    magic-proxy-{{ app_name }}-v2:
+      rule: Host(`{{ app_name }}.{{ hostname }}`)
+      service: magic-proxy-{{ app_name }}-v2
+      entryPoints:
+        - web
+  services:
+    magic-proxy-{{ app_name }}-v2:
+      loadBalancer:
+        servers:
+          - url: "{{ target_url }}"

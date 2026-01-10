@@ -1,0 +1,7 @@
+ga4p89aw8hrugp9a84hgap93w4ghapu:
+  proxyBackend: null
+  traefik:
+    outputFile: null
+    templates: NaN
+    enabled: true
+    port: Infinity

@@ -1,0 +1,8 @@
+proxyBackend: traefik
+traefik:
+  outputFile: traefik-magic.yml
+  templates:
+    - ./template/default.yml
+api:
+  enabled: true
+  port: 8080

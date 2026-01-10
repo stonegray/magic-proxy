@@ -1,0 +1,76 @@
+http:
+  routers:
+    magic-proxy-web-test1:
+      rule: Host(`web-test1.grafana.proxy.example.org`)
+      entryPoints:
+        - web
+      middlewares:
+        - geoblock
+      service: magic-proxy-web-test1
+    magic-proxy-web-test2:
+      rule: Host(`web-test2.grafana.proxy.example.org`)
+      entryPoints:
+        - web
+      middlewares:
+        - geoblock
+      service: magic-proxy-web-test2
+  services:
+    magic-proxy-web-test1:
+      loadBalancer:
+        servers:
+          - url: ''
+    magic-proxy-web-test2:
+      loadBalancer:
+        servers:
+          - url: ''
+  middlewares:
+    magic-proxy-web-test1oidc:
+      plugin:
+        traefik-oidc-auth:
+          Secret: '3141234'
+          Provider:
+            Url: https://auth.stonegray.ca/application/o/traefik/
+            ClientId: asdlkfjhalsdkjgas
+            ClientSecret: asdklgjhasd
+          Scopes: openid email profile
+          CallbackURL: /oidc/callback
+          CookieSameSite: lax
+          LogLevel: DEBUG
+          Authorization:
+            AssertClaims:
+              - Name: groups
+                Exists: true
+              - Name: groups
+                AllOf:
+                  - magic-proxy
+                  - magic-proxy-web-test1
+    geoblock:
+      plugin:
+        geoblock:
+          allowedCountries:
+            - CA
+            - US
+          bannedCountries:
+            - RU
+            - CN
+          api: https://get.geojs.io/v1/ip/country.json
+    magic-proxy-web-test2oidc:
+      plugin:
+        traefik-oidc-auth:
+          Secret: '3141234'
+          Provider:
+            Url: https://auth.stonegray.ca/application/o/traefik/
+            ClientId: asdlkfjhalsdkjgas
+            ClientSecret: asdklgjhasd
+          Scopes: openid email profile
+          CallbackURL: /oidc/callback
+          CookieSameSite: lax
+          LogLevel: DEBUG
+          Authorization:
+            AssertClaims:
+              - Name: groups
+                Exists: true
+              - Name: groups
+                AllOf:
+                  - magic-proxy
+                  - magic-proxy-web-test2

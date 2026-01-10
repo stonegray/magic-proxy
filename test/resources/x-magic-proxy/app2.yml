@@ -1,0 +1,6 @@
+x-magic-proxy:
+  template: default
+  target: http://app2.internal:8080
+  hostname: example.local
+  userData:
+    custom_field: value123

@@ -1,0 +1,21 @@
+# Magic Proxy configuration
+
+# Required: one of ["traefik"]. More backends may be added in the future.
+proxyBackend: traefik
+
+
+traefik:
+  # Output file for Traefik dynamic configuration
+  outputFile: traefik-magic.yml
+
+  # Templates are loaded from CONFIG_DIRECTORY (defaults to ./config/)
+  # Specify template filenames or paths relative to CONFIG_DIRECTORY
+  # Services reference these templates by filename (e.g., "example.yml")
+  # in their x-magic-proxy.template field
+  templates:
+    - ./template/oidc.yml
+api:
+  # Enable or disable the Magic Proxy API; required for docker health, external logging. 
+  enabled: true
+  # Port for the Magic Proxy API
+  port: 8080
