@@ -61,23 +61,6 @@ export type ComposeFileData = {
 
 
 
-export function watchDockerEvents(onContainerChange: () => void) {
-    async function connect() {
-        const stream = await docker.getEvents({ filters: { type: ['container'] } });
-        stream.on('data', (chunk: Buffer) => {
-            try {
-                const ev = JSON.parse(chunk.toString());
-                if (ev.Type === 'container' && ['create', 'destroy'].includes(ev.Action)) {
-                    onContainerChange();
-                }
-            } catch { }
-        });
-        stream.on('error', () => setTimeout(connect, 1000));
-        stream.on('end', () => setTimeout(connect, 1000));
-    }
-    connect();
-}
-
 export interface ComposeFileReference {
     path: string | null;
     error?: string;
