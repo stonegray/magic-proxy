@@ -2,12 +2,6 @@ import EventEmitter from 'events';
 import { HostEntry } from './types/host';
 
 
-type HostDBEvents = {
-    added: HostEntry;
-    updated: HostEntry;
-    removed: HostEntry;
-};
-
 export class HostDB extends EventEmitter {
     private db = new Map<string, HostEntry>();
 

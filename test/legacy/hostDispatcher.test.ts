@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { HostDB } from '../../src/hostDb';
 import { attachHostDbToBackend } from '../../src/hostDispatcher';
 import * as backendPlugin from '../../src/backends/backendPlugin';

@@ -1,4 +1,5 @@
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as traefik from '../../src/backends/traefik/traefik';
 import * as manager from '../../src/backends/traefik/traefikManager';
 import { HostEntry } from '../../src/types/host';

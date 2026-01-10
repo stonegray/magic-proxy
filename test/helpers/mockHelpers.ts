@@ -2,6 +2,7 @@
  * Test helpers for mocking configs, templates, and x-magic-proxy data
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
@@ -36,7 +37,7 @@ export function getXMagicProxyPath(filename: string): string {
 /**
  * Create a mock template string for testing
  */
-export function createMockTemplate(name: string = 'default'): string {
+export function createMockTemplate(_name: string = 'default'): string {
     return `http:
   routers:
     magic-proxy-{{ app_name }}:
@@ -137,7 +138,7 @@ export function mockFS(options: { templates?: Record<string, string>; configs?: 
     // the app's default configuration (used by loadConfigFile() when called without a path)
     try {
         // Lazy import to avoid cycles during test startup
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { DEFAULT_CONFIG_FILE } = require('../../src/config');
         // If user provided a config with the special key '__DEFAULT__', map it directly
         if (configs['__DEFAULT__']) {

@@ -1,4 +1,5 @@
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import fs from 'fs';
 import { setupFSMocks, getConfigPath, getTemplatePath } from '../helpers/mockHelpers';
 import { loadConfigFile } from '../../src/config';
@@ -25,10 +26,10 @@ describe('load-config functional', () => {
     it('loads the fake config and initializes the app', async () => {
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => { });
 
-        const cfg = await loadConfigFile(getConfigPath('basic.yml'));
+        await loadConfigFile(getConfigPath('basic.yml'));
 
         // Dynamically import the index module after FS mocks are in place so module startup succeeds
-        const mod = await import('../../src/index');
+        await import('../../src/index');
 
         // The module-level initialization is started without awaiting; wait until the
         // "Initialization complete." log appears (or timeout).

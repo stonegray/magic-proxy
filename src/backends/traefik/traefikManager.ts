@@ -92,15 +92,16 @@ export async function flushToDisk(): Promise<void> {
         }
 
         // Validate http substructure
-        if ((validated as any).http) {
-            const http = (validated as any).http as Record<string, unknown>;
+        const val = validated as Record<string, unknown>;
+        if (val.http) {
+            const http = val.http as Record<string, unknown>;
             const httpKeys = Object.keys(http);
             const allowedHttp = ['routers', 'services', 'middlewares'];
             for (const hk of httpKeys) {
                 if (!allowedHttp.includes(hk)) {
                     throw new Error(`Unexpected key under http in generated YAML: '${hk}'`);
                 }
-                const section = (http as any)[hk];
+                const section = http[hk];
                 if (section && typeof section === 'object') {
                     for (const name of Object.keys(section)) {
                         // keys must be simple strings without whitespace/newlines
@@ -132,10 +133,11 @@ export async function flushToDisk(): Promise<void> {
 
     // Verify temporary file was written correctly. Only enforce strict verification
     // when the real fs.promises.writeFile implementation is in use (tests often mock it).
-    const origWrite = (fs.promises as any).writeFile; // reference to detect mocking
     try {
-        // If writeFile was not mocked (i.e., the implementation is the original), do a strict check
-        if (origWrite && origWrite !== (fs.promises.writeFile as any)) {
+        // If writeFile was not mocked (i.e. not a spy), do a strict check
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const isMocked = !!(fs.promises.writeFile as any).mock || !!(fs.promises.writeFile as any)._isMockFunction;
+        if (isMocked) {
             // writeFile has been replaced; skip strict verification
         } else {
             const st = await fs.promises.stat(tmpFile);

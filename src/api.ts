@@ -1,7 +1,6 @@
 import express from 'express';
-import Docker from 'dockerode';
 
-export function createApp(docker: Docker) {
+export function createApp() {
     const app = express();
 
     app.use(express.json());

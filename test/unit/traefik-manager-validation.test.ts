@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as manager from '../../src/backends/traefik/traefikManager';
-import fs from 'fs';
+import * as yaml from 'js-yaml';
 
 describe('traefikManager validation', () => {
     it('rejects configs with unexpected top-level keys', async () => {
@@ -15,7 +15,6 @@ describe('traefikManager validation', () => {
             // function throws when load is attempted - call flushToDisk after writing the file manually
             // For safety, write to a temp file and try to call manager.flushToDisk (which would re-generate),
             // but we will just parse the YAML here to ensure our validation logic would throw if used.
-            const yaml = require('js-yaml');
             const parsed = yaml.load(badYaml);
             // run the same validation logic inline
             const topKeys = Object.keys(parsed as Record<string, unknown>);

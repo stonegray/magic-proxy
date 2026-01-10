@@ -123,7 +123,7 @@ export async function makeContainerManifest() {
 export function watchDockerEvents(onContainerChange: () => void) {
     const THROTTLE_MS = 1000; // rate limit interval
     let lastCall = 0;
-    let scheduled: NodeJS.Timeout | null = null;
+    let scheduled: ReturnType<typeof setTimeout> | null = null;
 
     function scheduleCall() {
         const now = Date.now();
@@ -131,7 +131,7 @@ export function watchDockerEvents(onContainerChange: () => void) {
 
         if (since >= THROTTLE_MS) {
             lastCall = now;
-            try { onContainerChange(); } catch { }
+            try { onContainerChange(); } catch { /* ignore */ }
             return;
         }
 
@@ -140,7 +140,7 @@ export function watchDockerEvents(onContainerChange: () => void) {
         scheduled = setTimeout(() => {
             scheduled = null;
             lastCall = Date.now();
-            try { onContainerChange(); } catch { }
+            try { onContainerChange(); } catch { /* ignore */ }
         }, THROTTLE_MS - since);
     }
 
@@ -152,7 +152,7 @@ export function watchDockerEvents(onContainerChange: () => void) {
                 if (ev.Type === 'container' && ['create', 'start', 'die', 'destroy'].includes(ev.Action)) {
                     scheduleCall();
                 }
-            } catch { }
+            } catch { /* ignore */ }
         });
         stream.on('error', () => setTimeout(connect, 1000));
         stream.on('end', () => setTimeout(connect, 1000));

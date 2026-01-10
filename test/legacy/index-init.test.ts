@@ -8,7 +8,7 @@ describe('index startApp behavior', () => {
 
         try {
             await index.startApp({});
-        } catch (_err) {
+        } catch {
             // process.exit throws in our mock
         }
 
@@ -25,7 +25,7 @@ describe('index startApp behavior', () => {
 
         try {
             await index.startApp({ proxyBackend: 'not-a-backend' });
-        } catch (_err) {
+        } catch {
             // process.exit throws in our mock
         }
 

@@ -1,18 +1,16 @@
-import Docker from 'dockerode';
 import { createApp } from './api';
 import { loadConfigFile } from './config';
 import { initialize as initializeBackend } from './backends/backendPlugin';
 import { HostDB } from './hostDb';
 import { updateDatabaseFromManifest, watchDockerEvents } from './docker';
+import { MagicProxyConfigFile } from './types/config';
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
 
-// dockerode will talk to the local docker daemon via the socket by default
-const docker = new Docker({ socketPath: process.env.DOCKER_SOCKET || '/var/run/docker.sock' });
 
-const app = createApp(docker);
+const app = createApp();
 
-export async function startApp(config?: any) {
+export async function startApp(config?: MagicProxyConfigFile) {
     try {
         const cfg = config || await loadConfigFile();
 

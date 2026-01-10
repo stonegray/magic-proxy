@@ -9,7 +9,6 @@ import { MagicProxyConfigFile } from '../../types/config';
 import { XMagicProxyData } from '../../types/xmagic';
 import { HostEntry } from '../../types/host';
 
-let outputFile: string | null = null;
 let templates: Map<string, string> = new Map(); // Map template name to template content
 // registry moved to traefikManager (manager.register/remove/getConfig/listRegisteredApps)
 
@@ -62,7 +61,6 @@ export function _setTemplateForTesting(name: string, content: string): void {
 // For testing: clear registry
 export function _resetForTesting(): void {
     if (typeof manager._resetForTesting === 'function') manager._resetForTesting();
-    outputFile = null;
     templates.clear();
 }
 
@@ -98,7 +96,6 @@ export async function initialize(config?: MagicProxyConfigFile): Promise<void> {
         // If output file is relative, write into OUTPUT_DIRECTORY by default
         const of = config.traefik.outputFile;
         const resolved = of && (of.startsWith('/') ? of : path.resolve(OUTPUT_DIRECTORY, of));
-        outputFile = resolved;
         manager.setOutputFile(resolved || null);
     }
     // on initialize, flush current registry (may be empty)
