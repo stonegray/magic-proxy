@@ -2,9 +2,9 @@
   "name": "docker-ts-app",
   "version": "0.1.0",
   "description": "Container management API that uses the Docker socket",
-  "type": "module",
   "scripts": {
     "build": "tsc -p .",
+    "docker:build": "npm run build && docker build -t magic-proxy:latest .",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint . --ext .ts --max-warnings 10",

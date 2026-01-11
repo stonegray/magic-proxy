@@ -15,3 +15,5 @@ traefik-magic.yml
 eslint.config.js
 vitest.config.ts
 *.md
+test-env
+simulator

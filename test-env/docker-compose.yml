@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  simulator:
+    image: docker:27-dind
+    container_name: simulator
+    privileged: true
+    environment:
+      # Allow insecure registries for local testing
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      # Mount the inner docker-compose file
+      - ./filesystem:/workspace:ro
+      # Mount the pre-built image tarball (created by prepare-simulator.sh)
+      - ./filesystem/magic-proxy.tar.gz:/images/magic-proxy.tar.gz:ro
+    ports:
+      # Expose the inner Docker daemon (optional, for debugging)
+      - "2375:2375"
+      # Expose traefik port from inside the simulator
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    command: >
+      sh -c "
+        dockerd-entrypoint.sh &
+        
+        # Wait for Docker daemon to be ready
+        until docker info > /dev/null 2>&1; do
+          echo 'Waiting for Docker daemon...'
+          sleep 1
+        done
+        
+        echo 'Docker daemon ready'
+        
+        # Load the pre-built magic-proxy image if it exists
+        if [ -f /images/magic-proxy.tar.gz ]; then
+          echo 'Loading magic-proxy image...'
+          docker load < /images/magic-proxy.tar.gz
+          echo 'Image loaded successfully'
+        else
+          echo 'Warning: magic-proxy.tar.gz not found, skipping image load'
+        fi
+        
+        # Install docker-compose
+        apk add --no-cache docker-compose
+        
+        # Start the inner environment
+        cd /workspace
+        docker-compose -f test-env.yml up -d
+        
+        echo 'Simulator environment started'
+        
+        # Keep container running and tail logs
+        docker-compose -f test-env.yml logs -f
+      "
