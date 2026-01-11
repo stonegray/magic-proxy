@@ -1,12 +1,28 @@
 import Docker from 'dockerode';
 import fs from 'fs';
 import yaml from 'js-yaml';
+import isDocker from 'is-docker';
 import { ComposeFileData } from '../../types/docker';
 import { XMagicProxyData, XMagicProxySchema } from '../../types/xmagic';
 import { zone } from '../../logging/zone';
 import { ComposeFileReference, COMPOSE_CONFIG_LABEL, COMPOSE_SERVICE_LABEL } from './types';
 
 const log = zone('providers.docker');
+
+/** Whether we're running inside a Docker container */
+const runningInDocker = isDocker();
+
+/**
+ * Resolves a host path to a container-accessible path.
+ * When running inside Docker with host filesystem mounted at /host,
+ * prepends /host to absolute paths.
+ */
+function resolveHostPath(hostPath: string): string {
+    if (runningInDocker && hostPath.startsWith('/')) {
+        return `/host${hostPath}`;
+    }
+    return hostPath;
+}
 
 /**
  * Extracts the container name from Docker container info, removing the leading slash
@@ -62,13 +78,14 @@ export function groupContainersByComposeFile(
  * Reads and parses a Docker Compose file
  */
 export async function loadComposeFile(path: string): Promise<ComposeFileData | undefined> {
+    const resolvedPath = resolveHostPath(path);
     try {
-        const content = await fs.promises.readFile(path, 'utf-8');
+        const content = await fs.promises.readFile(resolvedPath, 'utf-8');
         return yaml.load(content) as ComposeFileData;
     } catch (error) {
         log.error({
             message: 'Failed to read/parse compose file',
-            data: { path, error: error instanceof Error ? error.message : String(error) }
+            data: { path, resolvedPath, error: error instanceof Error ? error.message : String(error) }
         });
         return undefined;
     }
