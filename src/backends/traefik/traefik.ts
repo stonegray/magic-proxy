@@ -8,6 +8,9 @@ import * as manager from './traefikManager';
 import { MagicProxyConfigFile } from '../../types/config';
 import { XMagicProxyData } from '../../types/xmagic';
 import { HostEntry } from '../../types/host';
+import { zone } from '../../logging/zone';
+
+const log = zone('backends.traefik');
 
 let templates: Map<string, string> = new Map(); // Map template name to template content
 // registry moved to traefikManager (manager.register/remove/getConfig/listRegisteredApps)
@@ -26,7 +29,14 @@ async function loadTemplate(templatePath: string): Promise<string> {
         return content;
     } catch (error) {
         const errorMsg = `ERROR: Failed to load template ${templatePath} (resolved: ${resolved}): ${error instanceof Error ? error.message : String(error)}`;
-        console.error(errorMsg);
+        log.error({
+            message: 'Failed to load template',
+            data: {
+                templatePath,
+                resolvedPath: resolved,
+                error: error instanceof Error ? error.message : String(error)
+            }
+        });
         throw new Error(errorMsg);
     }
 }
@@ -39,7 +49,14 @@ function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYam
     const templateContent = templates.get(data.template);
     if (templateContent === undefined) {
         const errorMsg = `ERROR: Template '${data.template}' not found for app '${appName}'. Available templates: ${Array.from(templates.keys()).join(', ')}`;
-        console.error(errorMsg);
+        log.error({
+            message: 'Template not found for app',
+            data: {
+                appName,
+                template: data.template,
+                availableTemplates: Array.from(templates.keys())
+            }
+        });
         throw new Error(errorMsg);
     }
 
@@ -68,15 +85,13 @@ export function _resetForTesting(): void {
 
 export async function initialize(config?: MagicProxyConfigFile): Promise<void> {
     if (!config) {
-        const errorMsg = 'ERROR: No config provided to traefik backend initialize';
-        console.error(errorMsg);
+        log.error({ message: 'No config provided to traefik backend initialize' });
         process.exit(1);
     }
 
     // Load templates from config
     if (!config.traefik?.templates || config.traefik.templates.length === 0) {
-        const errorMsg = 'ERROR: No templates defined in config.traefik.templates. At least one template is required.';
-        console.error(errorMsg);
+        log.error({ message: 'No templates defined in config.traefik.templates. At least one template is required.' });
         process.exit(1);
     }
 
@@ -87,8 +102,7 @@ export async function initialize(config?: MagicProxyConfigFile): Promise<void> {
     }
 
     if (templates.size === 0) {
-        const errorMsg = 'ERROR: No templates were loaded. Cannot proceed without templates.';
-        console.error(errorMsg);
+        log.error({ message: 'No templates were loaded. Cannot proceed without templates.' });
         process.exit(1);
     }
 

@@ -5,6 +5,9 @@ import yaml from 'js-yaml';
 import { XMagicProxyData } from '../types/xmagic';
 import { HostDB } from '../hostDb';
 import { HostEntry } from '../types/host';
+import { zone } from '../logging/zone';
+
+const log = zone('providers.docker');
 
 // Constants
 const COMPOSE_CONFIG_LABEL = 'com.docker.compose.project.config_files';
@@ -38,23 +41,26 @@ export function validateXMagicProxy(
     }
 
     if (!xMagicProxy.template) {
-        console.warn(
-            `[Docker Provider] Container "${containerName}" has malformed x-magic-proxy: missing required field "template"`
-        );
+        log.warn({
+            message: 'Container has malformed x-magic-proxy: missing required field "template"',
+            data: { containerName }
+        });
         return false;
     }
 
     if (!xMagicProxy.target) {
-        console.warn(
-            `[Docker Provider] Container "${containerName}" has malformed x-magic-proxy: missing required field "target"`
-        );
+        log.warn({
+            message: 'Container has malformed x-magic-proxy: missing required field "target"',
+            data: { containerName }
+        });
         return false;
     }
 
     if (!xMagicProxy.hostname) {
-        console.warn(
-            `[Docker Provider] Container "${containerName}" has malformed x-magic-proxy: missing required field "hostname"`
-        );
+        log.warn({
+            message: 'Container has malformed x-magic-proxy: missing required field "hostname"',
+            data: { containerName }
+        });
         return false;
     }
 
@@ -108,9 +114,13 @@ export function groupContainersByComposeFile(
         const containerNames = containersWithoutComposeFile
             .map(c => extractContainerName(c))
             .join(', ');
-        console.warn(
-            `[Docker Provider] ${containersWithoutComposeFile.length} container(s) have no compose file label: ${containerNames}`
-        );
+        log.warn({
+            message: 'Some containers have no compose file label',
+            data: {
+                count: containersWithoutComposeFile.length,
+                containerNames
+            }
+        });
     }
 
     // Convert map to array of ComposeFileReference objects
@@ -134,10 +144,10 @@ export async function loadComposeData(): Promise<ComposeFileReference[]> {
     try {
         containers = await docker.listContainers({ all: true });
     } catch (error) {
-        console.error(
-            '[Docker Provider] Failed to list Docker containers:',
-            error instanceof Error ? error.message : String(error)
-        );
+        log.error({
+            message: 'Failed to list Docker containers',
+            data: { error: error instanceof Error ? error.message : String(error) }
+        });
         return [];
     }
 
@@ -162,9 +172,14 @@ export async function loadComposeData(): Promise<ComposeFileReference[]> {
                 .map(c => extractContainerName(c))
                 .join(', ');
             
-            console.error(
-                `[Docker Provider] Failed to read/parse compose file "${path}" for containers [${containerNames}]: ${errorMessage}`
-            );
+            log.error({
+                message: 'Failed to read/parse compose file',
+                data: {
+                    path,
+                    containerNames,
+                    error: errorMessage
+                }
+            });
         }
     }
 
@@ -204,9 +219,13 @@ export async function buildContainerManifest(): Promise<{
                 .map(c => extractContainerName(c))
                 .join(', ');
             
-            console.warn(
-                `[Docker Provider] Skipping containers [${containerNames}] from "${composePath}": compose data missing`
-            );
+            log.warn({
+                message: 'Skipping containers due to missing compose data',
+                data: {
+                    path: composePath,
+                    containerNames
+                }
+            });
             
             for (const container of composeFile.containers) {
                 const containerName = extractContainerName(container);
@@ -265,9 +284,13 @@ export async function updateDatabaseFromManifest(hostDb: HostDB): Promise<Proces
             hostDb.upsert(entry);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(
-                `[Docker Provider] Failed to upsert entry for container "${entry.containerName}": ${errorMessage}`
-            );
+            log.error({
+                message: 'Failed to upsert entry for container',
+                data: {
+                    containerName: entry.containerName,
+                    error: errorMessage
+                }
+            });
             
             // Update the result to reflect the upsert failure
             const composePath = entry.composeFilePath;
@@ -288,9 +311,14 @@ export async function updateDatabaseFromManifest(hostDb: HostDB): Promise<Proces
         0
     );
 
-    console.log(
-        `[Docker Provider] Processed ${totalContainers} container(s): ${successfulContainers} added to database, ${totalContainers - successfulContainers} skipped/failed`
-    );
+    log.info({
+        message: 'Processed container(s)',
+        data: {
+            total: totalContainers,
+            added: successfulContainers,
+            skippedOrFailed: totalContainers - successfulContainers
+        }
+    });
 
     return results;
 }

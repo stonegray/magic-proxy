@@ -2,6 +2,9 @@ import yaml from 'js-yaml';
 import fs from 'fs';
 import path from 'path';
 import { TraefikConfigYamlFormat } from './types/traefik';
+import { zone } from '../../logging/zone';
+
+const log = zone('backends.traefik.mgr');
 
 // Registry stores partial configs keyed by app name
 const registry = new Map<string, TraefikConfigYamlFormat>();
@@ -115,11 +118,15 @@ export async function flushToDisk(): Promise<void> {
 
         // Check for unreplaced template variables
         if (yamlText.includes('{{') || yamlText.includes('}}')) {
-            console.warn('WARN: Generated config contains unreplaced template variables');
-            console.warn('This may indicate missing data or template rendering issues');
+            log.warn({
+                message: 'Generated config contains unreplaced template variables (may indicate missing data)'
+            });
         }
     } catch (error) {
-        console.error('ERROR: Failed to validate generated YAML:', error instanceof Error ? error.message : String(error));
+        log.error({
+            message: 'Failed to validate generated YAML',
+            data: { error: error instanceof Error ? error.message : String(error) }
+        });
         throw new Error(`Invalid YAML generated, refusing to write: ${error instanceof Error ? error.message : String(error)}`);
     }
 
@@ -148,18 +155,25 @@ export async function flushToDisk(): Promise<void> {
             const tmpContent = await fs.promises.readFile(tmpFile, 'utf-8');
             if (tmpContent !== yamlText) {
                 // Helpful diagnostic when this unlikely mismatch happens
-                console.error('ERROR: Temporary file differs from generated YAML. Showing diagnostics:');
-                console.error(` - tmpFile: ${tmpFile}`);
-                console.error(` - tmpSize: ${st.size}`);
-                console.error(` - expectedSize: ${Buffer.byteLength(yamlText, 'utf8')}`);
                 const truncated = tmpContent.slice(0, 512);
-                console.error(` - tmpPreview: ${truncated.replace(/\n/g, '\\n').slice(0, 512)}`);
+                log.error({
+                    message: 'Temporary file differs from generated YAML',
+                    data: {
+                        tmpFile,
+                        tmpSize: st.size,
+                        expectedSize: Buffer.byteLength(yamlText, 'utf8'),
+                        tmpPreview: truncated.replace(/\n/g, '\\n').slice(0, 512)
+                    }
+                });
                 await fs.promises.unlink(tmpFile).catch(() => { });
                 throw new Error('Temporary file contents do not match generated YAML');
             }
         }
     } catch (err) {
-        console.error('ERROR: Failed to verify temporary file:', err instanceof Error ? err.message : String(err));
+        log.error({
+            message: 'Failed to verify temporary file',
+            data: { error: err instanceof Error ? err.message : String(err) }
+        });
         throw err;
     }
 
