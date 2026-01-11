@@ -6,6 +6,16 @@ export const OVERSIZE_THRESHOLD = 100_000; // bytes
 export const CONSOLE_TRUNCATE_LENGTH = 1_000; // characters
 const LOG_FILE = process.env.LOG_FILE || path.join(process.cwd(), 'logs', 'app.log');
 
+// Define colors for levels and add them to winston
+const levelColors: Record<string, string> = {
+    info: 'cyan',   // light blue
+    debug: 'gray',  // gray
+    error: 'red',
+    warn: 'yellow'
+};
+
+winston.addColors(levelColors);
+
 const levelMap: Record<string, string> = {
     error: "E",
     warn: "W",
@@ -121,16 +131,22 @@ export function formatDataForConsole(data: unknown) {
     return s;
 }
 
-const consoleFormat = winston.format.combine(
+export const lowerCaseLevel = winston.format((info) => {
+    if (info.level) info.level = String(info.level).toLowerCase();
+    return info;
+});
+
+export const consoleFormat = winston.format.combine(
     overflowGuard(),
-    winston.format.colorize(),
+    lowerCaseLevel(),
+    winston.format.colorize({ all: false }),
     winston.format.printf(info => {
-        const tag = levelMap[(info.level as string)] ?? (info.level as string).toUpperCase();
+        const levelLabel = (info.level as string) ?? '';
         const zone = info.zone ?? 'core';
         // Prefer serialized data for consistent, safe output
         const dataSource = (info as any).__serializedData ?? (Object.prototype.hasOwnProperty.call(info, 'data') ? (info as any).data : undefined);
         const dataPart = typeof dataSource !== 'undefined' ? ' ' + formatDataForConsole(dataSource) : '';
-        return `[${tag}][${zone}] ${info.message}${dataPart}`;
+        return `[${levelLabel}][${zone}] ${info.message}${dataPart}`;
     })
 );
 

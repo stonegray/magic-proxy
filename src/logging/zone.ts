@@ -31,6 +31,12 @@ export function zone(name: string) {
         error: createLogFn('error'),
         warn: createLogFn('warn'),
         info: createLogFn('info'),
-        debug: createLogFn('debug')
+        debug: createLogFn('debug'),
+        log: () => {
+            //eslint allow console.log usage
+            // eslint-disable-next-line no-console
+            console.error("log() is not supported; use info(), debug(), warn(), or error() instead.");
+            process.exit(1);
+        }
     };
 }
