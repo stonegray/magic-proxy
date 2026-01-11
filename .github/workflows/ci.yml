@@ -5,9 +5,6 @@ on:
     branches:
       - 'feat/**'
       - 'main'
-    branches-ignore:
-      - 'dev'
-      - 'dev-*'
     tags:
       - 'v*' 
 
