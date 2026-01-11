@@ -12,6 +12,7 @@ import {
 import { HostDB } from '../../../src/hostDb';
 import { XMagicProxyData } from '../../../src/types/xmagic';
 import { ComposeFileData } from '../../../src/types/docker';
+import { baseLogger } from '../../../src/logging/logger';
 
 describe('Docker Provider - extractContainerName', () => {
     it('should remove leading slash from container name', () => {
@@ -35,7 +36,7 @@ describe('Docker Provider - extractContainerName', () => {
 
 describe('Docker Provider - validateXMagicProxy', () => {
     beforeEach(() => {
-        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.spyOn(baseLogger, 'warn').mockImplementation(() => { });
     });
 
     it('should return false for undefined x-magic-proxy', () => {
@@ -52,8 +53,9 @@ describe('Docker Provider - validateXMagicProxy', () => {
         const result = validateXMagicProxy(xMagicProxy, 'test-container');
         
         expect(result).toBe(false);
-        expect(console.warn).toHaveBeenCalledWith(
-            expect.stringContaining('missing required field "template"')
+        expect((baseLogger.warn as any)).toHaveBeenCalledWith(
+            'Container has malformed x-magic-proxy: missing required field "template"',
+            expect.objectContaining({ zone: 'providers.docker', data: { containerName: 'test-container' } })
         );
     });
 
@@ -66,8 +68,9 @@ describe('Docker Provider - validateXMagicProxy', () => {
         const result = validateXMagicProxy(xMagicProxy, 'test-container');
         
         expect(result).toBe(false);
-        expect(console.warn).toHaveBeenCalledWith(
-            expect.stringContaining('missing required field "target"')
+        expect((baseLogger.warn as any)).toHaveBeenCalledWith(
+            'Container has malformed x-magic-proxy: missing required field "target"',
+            expect.objectContaining({ zone: 'providers.docker', data: { containerName: 'test-container' } })
         );
     });
 
@@ -80,8 +83,9 @@ describe('Docker Provider - validateXMagicProxy', () => {
         const result = validateXMagicProxy(xMagicProxy, 'test-container');
         
         expect(result).toBe(false);
-        expect(console.warn).toHaveBeenCalledWith(
-            expect.stringContaining('missing required field "hostname"')
+        expect((baseLogger.warn as any)).toHaveBeenCalledWith(
+            'Container has malformed x-magic-proxy: missing required field "hostname"',
+            expect.objectContaining({ zone: 'providers.docker', data: { containerName: 'test-container' } })
         );
     });
 
@@ -174,7 +178,7 @@ describe('Docker Provider - extractXMagicProxy', () => {
 
 describe('Docker Provider - groupContainersByComposeFile', () => {
     beforeEach(() => {
-        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.spyOn(baseLogger, 'warn').mockImplementation(() => { });
     });
 
     it('should group containers by compose file path', () => {
@@ -223,11 +227,9 @@ describe('Docker Provider - groupContainersByComposeFile', () => {
         const result = groupContainersByComposeFile(containers);
 
         expect(result).toHaveLength(0);
-        expect(console.warn).toHaveBeenCalledWith(
-            expect.stringContaining('2 container(s) have no compose file label')
-        );
-        expect(console.warn).toHaveBeenCalledWith(
-            expect.stringContaining('container1, container2')
+        expect((baseLogger.warn as any)).toHaveBeenCalledWith(
+            'Some containers have no compose file label',
+            expect.objectContaining({ data: { count: 2, containerNames: 'container1, container2' } })
         );
     });
 
@@ -249,8 +251,9 @@ describe('Docker Provider - groupContainersByComposeFile', () => {
 
         expect(result).toHaveLength(1);
         expect(result[0].path).toBe('/path/to/compose.yml');
-        expect(console.warn).toHaveBeenCalledWith(
-            expect.stringContaining('1 container(s) have no compose file label')
+        expect((baseLogger.warn as any)).toHaveBeenCalledWith(
+            'Some containers have no compose file label',
+            expect.objectContaining({ data: { count: 1, containerNames: 'container2' } })
         );
     });
 });
@@ -260,9 +263,9 @@ describe('Docker Provider - updateDatabaseFromManifest', () => {
 
     beforeEach(() => {
         hostDb = new HostDB();
-        vi.spyOn(console, 'warn').mockImplementation(() => {});
-        vi.spyOn(console, 'error').mockImplementation(() => {});
-        vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(baseLogger, 'warn').mockImplementation(() => { });
+        vi.spyOn(baseLogger, 'error').mockImplementation(() => { });
+        vi.spyOn(baseLogger, 'info').mockImplementation(() => { });
     });
 
     it('should have correct function signature', () => {
@@ -281,16 +284,17 @@ describe('Docker Provider - updateDatabaseFromManifest', () => {
     it('should log summary of processed containers', async () => {
         await updateDatabaseFromManifest(hostDb);
         
-        expect(console.log).toHaveBeenCalledWith(
-            expect.stringContaining('[Docker Provider] Processed')
+        expect((baseLogger.info as any)).toHaveBeenCalledWith(
+            'Processed container(s)',
+            expect.objectContaining({ data: expect.objectContaining({ total: expect.any(Number) }) })
         );
     });
 });
 
 describe('Docker Provider - buildContainerManifest', () => {
     beforeEach(() => {
-        vi.spyOn(console, 'warn').mockImplementation(() => {});
-        vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.spyOn(baseLogger, 'warn').mockImplementation(() => { });
+        vi.spyOn(baseLogger, 'error').mockImplementation(() => { });
     });
 
     it('should return manifest and results', async () => {
