@@ -59,6 +59,32 @@ function buildCombinedConfig(): TraefikConfigYamlFormat {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Clean up stale .tmp files for a given target file.
+ */
+async function cleanupTempFiles(filePath: string): Promise<void> {
+    const dir = path.dirname(filePath);
+    const baseName = path.basename(filePath);
+    
+    try {
+        const files = await fs.readdir(dir);
+        const tmpFiles = files.filter(f => f.startsWith(baseName) && f.endsWith('.tmp'));
+        
+        await Promise.all(
+            tmpFiles.map(tmpFile => 
+                fs.unlink(path.join(dir, tmpFile)).catch(() => { })
+            )
+        );
+        
+        if (tmpFiles.length > 0) {
+            log.debug({ message: 'Cleaned up temp files', data: { count: tmpFiles.length } });
+        }
+    } catch (err) {
+        // Ignore errors from directory read (e.g., directory doesn't exist yet)
+        log.debug({ message: 'Could not clean temp files', data: { error: err } });
+    }
+}
+
+/**
  * Write YAML atomically using temp file + rename pattern.
  */
 async function writeAtomically(filePath: string, content: string): Promise<void> {
@@ -66,6 +92,8 @@ async function writeAtomically(filePath: string, content: string): Promise<void>
 
     try {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
+        // Clean up any stale temp files before writing
+        await cleanupTempFiles(filePath);
         await fs.writeFile(tmpFile, content, 'utf-8');
         await fs.rename(tmpFile, filePath);
         log.debug({ message: 'Config written', data: { filePath } });
