@@ -25,7 +25,8 @@ export function zone(name: string) {
                 meta.data = data;
             }
 
-            (baseLogger as any)[level](message, meta);
+            const l = baseLogger as unknown as Record<'error' | 'warn' | 'info' | 'debug', (msg: string, meta?: Record<string, unknown>) => void>;
+            l[level](message, meta);
         };
     }
 

@@ -27,6 +27,14 @@ export default [
         },
     },
     {
+        // Test files often use `any` and import helpers that are only used for spying.
+        files: ['test/**/*.ts'],
+        rules: {
+            '@typescript-eslint/no-explicit-any': 'off',
+            '@typescript-eslint/no-unused-vars': 'off'
+        }
+    },
+    {
         ignores: ['dist/**', 'node_modules/**'],
     },
 ];

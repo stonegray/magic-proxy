@@ -14,7 +14,6 @@ export type MagicProxyConfigFile = {
         port: number;
     };
 
-    // requires any to allow additional properties
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any; // allow additional properties
+    // Allow additional properties on the config file object
+    [key: string]: unknown; // allow additional properties
 };

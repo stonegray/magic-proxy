@@ -24,12 +24,9 @@ export type TraefikConfigYamlFormat = {
         }>;
         middlewares?: Record<string, {
 
-            // eslint explanation:
-            // We use a catch-all index signature here to allow for any type of middleware configuration
-            // as Traefik supports a wide variety of middleware types (like redirect, retry, headers, rateLimit, etc.)
-
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            [key: string]: any; // catch-all for middleware types like redirect, retry, headers, rateLimit, etc.
+            // We use a catch-all index signature here to allow for middleware configuration of
+            // arbitrary shape since Traefik supports many middleware types (redirect, retry, headers, rateLimit, etc.)
+            [key: string]: unknown; // catch-all for middleware types
         }>;
     };
     tcp?: {

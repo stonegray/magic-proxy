@@ -2,7 +2,7 @@ import { createApp } from './api';
 import { loadConfigFile } from './config';
 import { initialize as initializeBackend } from './backends/backendPlugin';
 import { HostDB } from './hostDb';
-import { updateDatabaseFromManifest, watchDockerEvents } from './providers/docker';
+import { updateDatabaseFromManifest } from './providers/docker';
 import { MagicProxyConfigFile } from './types/config';
 import { zone } from './logging/zone';
 

@@ -1,6 +1,7 @@
 import * as winston from "winston";
 import fs from 'fs';
 import path from 'path';
+import util from 'util';
 
 export const OVERSIZE_THRESHOLD = 100_000; // bytes
 export const CONSOLE_TRUNCATE_LENGTH = 1_000; // characters
@@ -16,12 +17,7 @@ const levelColors: Record<string, string> = {
 
 winston.addColors(levelColors);
 
-const levelMap: Record<string, string> = {
-    error: "E",
-    warn: "W",
-    info: "I",
-    debug: "D"
-};
+
 
 // Ensure log directory exists for file transport
 try {
@@ -32,7 +28,6 @@ try {
 } catch (err) {
     // If we can't make the dir, continue; file transport will error when used
     // We don't want to crash the app during logger initialization
-    // eslint-disable-next-line no-console
     console.error('[Logger] Failed to ensure log directory exists:', err);
 }
 
@@ -54,7 +49,10 @@ export function serializeLogData(data: unknown): string {
     if (typeof data === 'boolean') return data ? 'true' : 'false';
 
     if (typeof data === 'symbol') return data.toString();
-    if (typeof data === 'function') return `<function:${(data as Function).name || 'anonymous'}>`;
+    if (typeof data === 'function') {
+        const fn = data as (...args: unknown[]) => unknown;
+        return `<function:${fn.name || 'anonymous'}>`;
+    }
 
     if (Buffer.isBuffer(data)) {
         // Use base64 to safely serialize binary data without huge expansion
@@ -64,25 +62,27 @@ export function serializeLogData(data: unknown): string {
     // Objects: try JSON.stringify, fallback to util.inspect for circular references
     try {
         return JSON.stringify(data);
-    } catch (err) {
-        // Fallback
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const util = require('util');
+    } catch {
+    // Fallback to util.inspect for objects that can't be JSON-stringified
         return util.inspect(data, { depth: 2, breakLength: Infinity });
     }
 }
 
+import type { Logform } from 'winston';
+
+type LogInfo = Logform.TransformableInfo & { __serializedData?: string; zone?: string; data?: unknown; timestamp?: string };
+
 // Guard that checks incoming data size and replaces oversized payloads
-export const overflowGuard = winston.format((info) => {
+export const overflowGuard = winston.format((info: LogInfo) => {
     // If data is not present at all, or explicitly undefined, treat it as missing and do nothing
-    if (!Object.prototype.hasOwnProperty.call(info, 'data') || (info as any).data === undefined) {
+    if (!Object.prototype.hasOwnProperty.call(info, 'data') || info.data === undefined) {
         return info;
     }
 
     // Serialize using type-aware serializer to avoid undefined/non-serializable issues
     let serialized: string;
     try {
-        serialized = serializeLogData((info as any).data as unknown);
+        serialized = serializeLogData(info.data as unknown);
     } catch (err) {
         const stack = err instanceof Error && err.stack ? err.stack : String(err);
         info.zone = 'logger';
@@ -93,7 +93,7 @@ export const overflowGuard = winston.format((info) => {
     }
 
     // Attach serialized copy for formatters and debugging without mutating original data
-    (info as any).__serializedData = serialized;
+    info.__serializedData = serialized;
 
     const bytes = Buffer.byteLength(serialized, 'utf8');
 
@@ -119,7 +119,7 @@ export function formatDataForConsole(data: unknown) {
     let s: string;
     try {
         s = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-    } catch (err) {
+    } catch {
         s = String(data);
     }
 
@@ -140,11 +140,11 @@ export const consoleFormat = winston.format.combine(
     overflowGuard(),
     lowerCaseLevel(),
     winston.format.colorize({ all: false }),
-    winston.format.printf(info => {
+    winston.format.printf((info: LogInfo) => {
         const levelLabel = (info.level as string) ?? '';
         const zone = info.zone ?? 'core';
         // Prefer serialized data for consistent, safe output
-        const dataSource = (info as any).__serializedData ?? (Object.prototype.hasOwnProperty.call(info, 'data') ? (info as any).data : undefined);
+        const dataSource = typeof info.__serializedData !== 'undefined' ? info.__serializedData : (Object.prototype.hasOwnProperty.call(info, 'data') ? info.data : undefined);
         const dataPart = typeof dataSource !== 'undefined' ? ' ' + formatDataForConsole(dataSource) : '';
         return `[${levelLabel}][${zone}] ${info.message}${dataPart}`;
     })
@@ -153,19 +153,19 @@ export const consoleFormat = winston.format.combine(
 const fileFormat = winston.format.combine(
     overflowGuard(),
     winston.format.timestamp(),
-    winston.format.printf(info => {
-        const ts = (info as any).timestamp || new Date().toISOString();
+    winston.format.printf((info: LogInfo) => {
+        const ts = info.timestamp || new Date().toISOString();
         const zone = info.zone ?? 'core';
         const level = ((info.level as string) ?? '').toUpperCase();
         let dataPart = '';
-        const serialized = (info as any).__serializedData;
+        const serialized = info.__serializedData;
         if (typeof serialized !== 'undefined') {
             dataPart = ' ' + serialized;
         } else if (Object.prototype.hasOwnProperty.call(info, 'data')) {
             try {
-                dataPart = ' ' + (typeof (info as any).data === 'string' ? (info as any).data : JSON.stringify((info as any).data));
-            } catch (_) {
-                dataPart = ' ' + String((info as any).data);
+                dataPart = ' ' + (typeof info.data === 'string' ? info.data : JSON.stringify(info.data));
+            } catch {
+                dataPart = ' ' + String(info.data);
             }
         }
 

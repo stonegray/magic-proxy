@@ -1,5 +1,4 @@
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import fs from 'fs';
 import { setupFSMocks, getConfigPath, getTemplatePath } from '../helpers/mockHelpers';
 import { loadConfigFile } from '../../src/config';

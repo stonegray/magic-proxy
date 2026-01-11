@@ -2,7 +2,7 @@
  * Test helpers for mocking configs, templates, and x-magic-proxy data
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';

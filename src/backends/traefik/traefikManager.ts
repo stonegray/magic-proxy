@@ -142,8 +142,8 @@ export async function flushToDisk(): Promise<void> {
     // when the real fs.promises.writeFile implementation is in use (tests often mock it).
     try {
         // If writeFile was not mocked (i.e. not a spy), do a strict check
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const isMocked = !!(fs.promises.writeFile as any).mock || !!(fs.promises.writeFile as any)._isMockFunction;
+        const writeFileAny = fs.promises.writeFile as unknown as { mock?: unknown; _isMockFunction?: unknown };
+        const isMocked = !!writeFileAny.mock || !!writeFileAny._isMockFunction;
         if (isMocked) {
             // writeFile has been replaced; skip strict verification
         } else {
