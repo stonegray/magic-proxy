@@ -2,7 +2,7 @@ import { baseLogger } from "./logger"
 
 /* Usage:
  * const log = zone("auth.bar.foo");
- * log.info("This is an info message");
+ * log.info({ message: "User logged in", data: { userId: 12345 } });
  */
 
 export function zone(name: string) {
