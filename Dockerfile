@@ -1,5 +1,5 @@
 # ---------- Build stage ----------
-FROM node:24.12.0@sha256:b52a8d1206132b36d60e51e413d9a81336e8a0206d3b648cabd6d5a49c4c0f54 AS build
+FROM node:25.2.1@sha256:6d362f0df70431417ef79c30e47c0515ea9066d8be8011e859c6c3575514a027 AS build
 WORKDIR /app
 
 # Install dependencies (lockfile enforced)
@@ -14,7 +14,7 @@ RUN npm run build
 
 
 # ---------- Runtime stage ----------
-FROM node:24.12.0@sha256:b52a8d1206132b36d60e51e413d9a81336e8a0206d3b648cabd6d5a49c4c0f54
+FROM node:25.2.1@sha256:6d362f0df70431417ef79c30e47c0515ea9066d8be8011e859c6c3575514a027
 WORKDIR /app
 
 # Copy package metadata + lockfile
