@@ -173,6 +173,14 @@ export function mockFS(options: { templates?: Record<string, string>; configs?: 
             if (lookup.has(trimmed)) return lookup.get(trimmed);
         }
 
+        // If still not found, try to match /var/config/magic-proxy.yml to magic-proxy.yml
+        // This handles the case where the app runs in Docker and uses /var/config paths
+        // but tests provide mocks based on filename
+        if (normalized.includes('/var/config/') || normalized.includes('/var/generated/')) {
+            const fileName = path.basename(normalized);
+            if (lookup.has(fileName)) return lookup.get(fileName);
+        }
+
         return undefined;
     }
 

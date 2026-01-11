@@ -1,4 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
+
+// Mock is-docker to always return false in tests so paths resolve to ./config instead of /var/config
+vi.mock('is-docker', () => ({
+    default: () => false,
+}));
+
 import * as index from '../../src/index';
 
 describe('index startApp behavior', () => {

@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, expect } from 'vitest';
+import { describe, it, beforeEach, afterEach, expect } from 'vitest';
 import * as traefik from '../../src/backends/traefik/traefik';
 import * as backendPlugin from '../../src/backends/backendPlugin';
 import fs from 'fs';
@@ -6,6 +6,7 @@ import { OUTPUT_DIRECTORY } from '../../src/config';
 import { XMagicProxyData } from '../../src/types/xmagic';
 import { HostEntry } from '../../src/types/host';
 import { ComposeFileData } from '../../src/types/docker';
+import { createMockConfig, setupFSMocks, getTemplatePath } from '../helpers/mockHelpers';
 
 describe('Traefik Backend Plugin', () => {
     beforeEach(() => {
@@ -152,9 +153,21 @@ http:
 });
 
 describe('Backend Plugin Router', () => {
+    let mocks: ReturnType<typeof setupFSMocks>;
+
+    beforeEach(() => {
+        const tmpl = fs.readFileSync(getTemplatePath('default.yml'), 'utf-8');
+        mocks = setupFSMocks({ 'example.yml': tmpl, 'default.yml': tmpl });
+    });
+
+    afterEach(() => {
+        mocks.cleanup();
+    });
+
     it('should initialize the traefik backend through backendPlugin', async () => {
         fs.mkdirSync(OUTPUT_DIRECTORY, { recursive: true });
-        await backendPlugin.initialize();
+        const config = createMockConfig();
+        await backendPlugin.initialize(config);
         const status = await backendPlugin.getStatus();
         expect(status).toBeDefined();
         expect(Array.isArray(status.registered)).toBe(true);
@@ -162,7 +175,8 @@ describe('Backend Plugin Router', () => {
 
     it('should route addProxiedApp to traefik backend', async () => {
         fs.mkdirSync(OUTPUT_DIRECTORY, { recursive: true });
-        await backendPlugin.initialize();
+        const config = createMockConfig();
+        await backendPlugin.initialize(config);
 
         const appData: XMagicProxyData = {
             template: 'default',
@@ -180,7 +194,8 @@ describe('Backend Plugin Router', () => {
 
     it('should route removeProxiedApp to traefik backend', async () => {
         fs.mkdirSync(OUTPUT_DIRECTORY, { recursive: true });
-        await backendPlugin.initialize();
+        const config = createMockConfig();
+        await backendPlugin.initialize(config);
 
         const appData: XMagicProxyData = { template: 'default', target: 'http://temp:8000', hostname: 'temp' };
         const entry: HostEntry = { containerName: 'temp', xMagicProxy: appData, composeFilePath: '', composeData: {} as ComposeFileData, lastChanged: Date.now(), state: {} };

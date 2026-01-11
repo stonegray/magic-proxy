@@ -4,6 +4,11 @@ import fs from 'fs';
 import { setupFSMocks, getConfigPath, getTemplatePath } from '../helpers/mockHelpers';
 import { loadConfigFile } from '../../src/config';
 
+// Mock is-docker to always return false in tests so paths resolve to ./config instead of /var/config
+vi.mock('is-docker', () => ({
+    default: () => false,
+}));
+
 // Note: do NOT import startApp at top-level because the module auto-starts on import.
 // We will dynamically import it after setting up FS mocks so module-level startup resolves
 // against our mocked files.
