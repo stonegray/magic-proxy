@@ -1,0 +1,1 @@
+To change the fields in x-magic-proxy-descriptor, you need to edit the Zod type in ./xmagic.ts as the typescript is generated on the fly. 

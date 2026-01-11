@@ -2,7 +2,7 @@ import Docker from 'dockerode';
 import { ComposeFileReference, ComposeFileData } from '../types/docker';
 import fs from 'fs';
 import yaml from 'js-yaml';
-import { XMagicProxyData } from '../types/xmagic';
+import { XMagicProxyData, validateXMagicProxyData, XMagicProxySchema } from '../types/xmagic';
 import { HostDB } from '../hostDb';
 import { HostEntry } from '../types/host';
 import { zone } from '../logging/zone';
@@ -11,6 +11,7 @@ const log = zone('providers.docker');
 
 // Constants
 const COMPOSE_CONFIG_LABEL = 'com.docker.compose.project.config_files';
+const COMPOSE_SERVICE_LABEL = 'com.docker.compose.service';
 const CONTAINER_NAME_PREFIX = /^\//;
 
 // Return type for updateDatabaseFromManifest
@@ -40,7 +41,16 @@ export function validateXMagicProxy(
         return false;
     }
 
-    if (!xMagicProxy.template) {
+    // Use Zod schema directly so we can inspect issues for precise logging
+    const safe = XMagicProxySchema.safeParse(xMagicProxy);
+    if (safe.success) return true;
+
+    const issues = safe.error.issues;
+
+    const isMissingField = (field: string) =>
+        issues.some((issue) => issue.path[0] === field && /received undefined/i.test(issue.message));
+
+    if (isMissingField('template')) {
         log.warn({
             message: 'Container has malformed x-magic-proxy: missing required field "template"',
             data: { containerName }
@@ -48,7 +58,7 @@ export function validateXMagicProxy(
         return false;
     }
 
-    if (!xMagicProxy.target) {
+    if (isMissingField('target')) {
         log.warn({
             message: 'Container has malformed x-magic-proxy: missing required field "target"',
             data: { containerName }
@@ -56,7 +66,7 @@ export function validateXMagicProxy(
         return false;
     }
 
-    if (!xMagicProxy.hostname) {
+    if (isMissingField('hostname')) {
         log.warn({
             message: 'Container has malformed x-magic-proxy: missing required field "hostname"',
             data: { containerName }
@@ -64,20 +74,42 @@ export function validateXMagicProxy(
         return false;
     }
 
-    return true;
+    // Build human readable reason from issues
+    const reason = safe.error.issues
+        .map((issue) => {
+            const path = issue.path.length ? issue.path.join('.') : 'value';
+            return `${path} ${issue.message}`;
+        })
+        .join('; ');
+
+    // Generic warning for other schema issues (e.g. invalid URL, bad userData types)
+    log.warn({
+        message: 'Container has malformed x-magic-proxy',
+        data: { containerName, reason }
+    });
+
+    return false;
 }
 
 /**
- * Extracts x-magic-proxy configuration from compose file services
+ * Extracts x-magic-proxy configuration for a specific service from compose file
+ * @param composeData - The parsed compose file data
+ * @param serviceName - The service name to look up (optional, if not provided returns first found)
  */
 export function extractXMagicProxy(
-    composeData: ComposeFileData | undefined
+    composeData: ComposeFileData | undefined,
+    serviceName?: string
 ): Partial<XMagicProxyData> | undefined {
     if (!composeData?.services) {
         return undefined;
     }
 
-    // Find the first service with x-magic-proxy defined
+    // If service name provided, look up that specific service
+    if (serviceName && composeData.services[serviceName]) {
+        return composeData.services[serviceName]['x-magic-proxy'];
+    }
+
+    // Fallback: find the first service with x-magic-proxy defined
     for (const service of Object.values(composeData.services)) {
         if (service['x-magic-proxy']) {
             return service['x-magic-proxy'];
@@ -237,9 +269,10 @@ export async function buildContainerManifest(): Promise<{
         // Process each container in this compose file
         for (const container of composeFile.containers) {
             const containerName = extractContainerName(container);
+            const serviceName = container.Labels[COMPOSE_SERVICE_LABEL];
 
-            // Extract x-magic-proxy configuration
-            const xMagicProxy = extractXMagicProxy(composeFile.composeData);
+            // Extract x-magic-proxy configuration for this specific service
+            const xMagicProxy = extractXMagicProxy(composeFile.composeData, serviceName);
 
             if (!xMagicProxy) {
                 // Container doesn't have x-magic-proxy - this is normal, just skip silently

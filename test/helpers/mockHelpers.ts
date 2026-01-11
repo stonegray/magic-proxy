@@ -87,7 +87,7 @@ export function createMockConfig(overrides?: Partial<MagicProxyConfigFile>): Mag
         proxyBackend: 'traefik',
         traefik: {
             outputFile: 'traefik-magic.yml',
-            templates: ['./template/example.yml'],
+            templates: ['./template/example.yml', './template/default.yml'],
             ...overrides?.traefik,
         },
         api: { enabled: true, port: 8080 },
