@@ -19,7 +19,8 @@
     "express": "^5.2.1",
     "is-docker": "^4.0.0",
     "js-yaml": "^4.1.1",
-    "nunjucks": "^3.2.4"
+    "nunjucks": "^3.2.4",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@types/dockerode": "^3.3.47",
