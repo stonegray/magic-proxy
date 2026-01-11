@@ -46,7 +46,7 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
 
     log.debug({
         message: 'Rendering template',
-        data: { appName, contextKeys: Object.keys(context) }
+        data: { appName, context: { app_name: context.app_name, hostname: context.hostname, target_url: context.target_url } }
     });
 
     // Replace all {{ key }} occurrences

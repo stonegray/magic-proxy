@@ -52,7 +52,10 @@ function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYam
         throw new Error(`Template '${data.template}' not found for app '${appName}'. Available: ${available}`);
     }
 
-    log.debug({ message: 'Rendering template', data: { appName, template: data.template } });
+    log.debug({
+        message: 'Rendering template',
+        data: { appName, template: data.template, target: data.target, hostname: data.hostname }
+    });
 
     const rendered = renderTemplate(templateContent, appName, data);
     lastRendered = rendered;
@@ -138,7 +141,10 @@ export async function initialize(config?: MagicProxyConfigFile): Promise<void> {
  */
 export async function addProxiedApp(entry: HostEntry): Promise<void> {
     const { containerName, xMagicProxy } = entry;
-    log.info({ message: 'Adding proxied app', data: { containerName, hostname: xMagicProxy.hostname } });
+    log.info({
+        message: 'Adding proxied app',
+        data: { containerName, hostname: xMagicProxy.hostname, target: xMagicProxy.target, template: xMagicProxy.template }
+    });
 
     manager.register(containerName, makeAppConfig(containerName, xMagicProxy));
     await manager.flushToDisk();
