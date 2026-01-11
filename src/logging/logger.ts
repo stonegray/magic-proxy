@@ -158,10 +158,13 @@ const fileFormat = winston.format.combine(
     })
 );
 
+// When running unit tests we should avoid printing logs to console
+const isTestEnv = process.env.NODE_ENV === 'test';
+
 export const baseLogger = winston.createLogger({
     level: 'debug',
     transports: [
-        new winston.transports.Console({ format: consoleFormat }),
+        new winston.transports.Console({ format: consoleFormat, silent: isTestEnv }),
         new winston.transports.File({ filename: LOG_FILE, format: fileFormat })
     ]
 });
