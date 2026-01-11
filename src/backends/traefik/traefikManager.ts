@@ -12,6 +12,20 @@ const registry = new Map<string, TraefikConfigYamlFormat>();
 let outputFile: string | null = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Flush Debouncing
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Pending flush state for debouncing multiple rapid flushToDisk() calls.
+ * This prevents race conditions where multiple writes with different registry
+ * states could complete out of order.
+ */
+let pendingFlush: {
+    resolvers: Array<{ resolve: () => void; reject: (err: Error) => void }>;
+    scheduled: boolean;
+} | null = null;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Config Building
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -59,6 +73,32 @@ function buildCombinedConfig(): TraefikConfigYamlFormat {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Clean up stale .tmp files for a given target file.
+ */
+async function cleanupTempFiles(filePath: string): Promise<void> {
+    const dir = path.dirname(filePath);
+    const baseName = path.basename(filePath);
+    
+    try {
+        const files = await fs.readdir(dir);
+        const tmpFiles = files.filter(f => f.startsWith(baseName) && f.endsWith('.tmp'));
+        
+        await Promise.all(
+            tmpFiles.map(tmpFile => 
+                fs.unlink(path.join(dir, tmpFile)).catch(() => { })
+            )
+        );
+        
+        if (tmpFiles.length > 0) {
+            log.debug({ message: 'Cleaned up temp files', data: { count: tmpFiles.length } });
+        }
+    } catch (err) {
+        // Ignore errors from directory read (e.g., directory doesn't exist yet)
+        log.debug({ message: 'Could not clean temp files', data: { error: err } });
+    }
+}
+
+/**
  * Write YAML atomically using temp file + rename pattern.
  */
 async function writeAtomically(filePath: string, content: string): Promise<void> {
@@ -66,6 +106,8 @@ async function writeAtomically(filePath: string, content: string): Promise<void>
 
     try {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
+        // Clean up any stale temp files before writing
+        await cleanupTempFiles(filePath);
         await fs.writeFile(tmpFile, content, 'utf-8');
         await fs.rename(tmpFile, filePath);
         log.debug({ message: 'Config written', data: { filePath } });
@@ -90,8 +132,55 @@ export function getOutputFile(): string | null {
 
 /**
  * Flush the current combined configuration to disk.
+ *
+ * This function is debounced using setImmediate to prevent race conditions
+ * when multiple containers are registered in rapid succession. All synchronous
+ * register() calls will complete before the actual write occurs, ensuring the
+ * file contains the complete configuration.
  */
-export async function flushToDisk(): Promise<void> {
+export function flushToDisk(): Promise<void> {
+    return new Promise((resolve, reject) => {
+        // Add this caller to the list of resolvers
+        if (!pendingFlush) {
+            pendingFlush = { resolvers: [], scheduled: false };
+        }
+        pendingFlush.resolvers.push({ resolve, reject });
+
+        // Schedule the actual flush if not already scheduled
+        if (!pendingFlush.scheduled) {
+            pendingFlush.scheduled = true;
+
+            // Use setImmediate to defer the write until after all synchronous
+            // register() calls have completed in the current event loop tick
+            setImmediate(() => {
+                executeFlush();
+            });
+        }
+    });
+}
+
+/**
+ * Execute the actual flush operation and resolve/reject all pending callers.
+ */
+async function executeFlush(): Promise<void> {
+    const flush = pendingFlush;
+    pendingFlush = null;
+
+    if (!flush) return;
+
+    try {
+        await doFlushToDisk();
+        flush.resolvers.forEach(r => r.resolve());
+    } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        flush.resolvers.forEach(r => r.reject(error));
+    }
+}
+
+/**
+ * Internal implementation of flush - writes the current combined config to disk.
+ */
+async function doFlushToDisk(): Promise<void> {
     if (!outputFile) {
         log.debug({ message: 'No output file configured, skipping flush' });
         return;
@@ -162,4 +251,5 @@ export function listRegisteredApps(): string[] {
 export function _resetForTesting(): void {
     registry.clear();
     outputFile = null;
+    pendingFlush = null;
 }

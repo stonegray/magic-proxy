@@ -6,3 +6,6 @@ coverage/
 deploy.sh
 generated
 logs/
+# Simulator artifacts
+test-env/filesystem/*.tar.gz
+test-env/filesystem/*.tgz
