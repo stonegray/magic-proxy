@@ -2,7 +2,7 @@
 
 http:
   middlewares:
-    magic-proxy-{{ app_name }}oidc:
+    magic-proxy-{{ app_name }}-oidc:
       plugin:
         traefik-oidc-auth:
           Secret: "3141234" 
