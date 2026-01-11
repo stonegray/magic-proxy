@@ -20,10 +20,10 @@ echo ""
 # Ensure output directory exists
 mkdir -p "$OUTPUT_DIR"
 
-# Build the Docker image
+# Build the Docker image for current platform
 echo "Building magic-proxy Docker image..."
 cd "$PROJECT_ROOT"
-docker build -t magic-proxy:latest .
+docker buildx build --platform linux/amd64,linux/arm64 -t magic-proxy:latest --load .
 
 # Export the image as a gzip tarball
 echo ""

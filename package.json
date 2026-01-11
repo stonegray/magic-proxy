@@ -4,7 +4,7 @@
   "description": "Container management API that uses the Docker socket",
   "scripts": {
     "build": "tsc -p .",
-    "docker:build": "npm run build && docker build -t magic-proxy:latest .",
+    "docker:build": "npm run build && docker buildx build --platform linux/amd64,linux/arm64 -t magic-proxy:latest .",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint . --ext .ts --max-warnings 10",
