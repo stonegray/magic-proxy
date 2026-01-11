@@ -117,6 +117,40 @@ describe('Docker Provider - validateXMagicProxy', () => {
         const result = validateXMagicProxy(xMagicProxy, 'test-container');
         expect(result).toBe(true);
     });
+
+    it('should return false and warn when target is not a valid http(s) URL', () => {
+        const xMagicProxy: Partial<XMagicProxyData> = {
+            template: 'example.yml',
+            target: 'not-a-url',
+            hostname: 'example.com'
+        };
+
+        const result = validateXMagicProxy(xMagicProxy, 'test-container');
+
+        expect(result).toBe(false);
+        expect((baseLogger.warn as any)).toHaveBeenCalledWith(
+            'Container has malformed x-magic-proxy',
+            expect.objectContaining({ zone: 'providers.docker', data: expect.objectContaining({ containerName: 'test-container', reason: expect.any(String) }) })
+        );
+    });
+
+    it('should return false and warn when userData has invalid nested object', () => {
+        const xMagicProxy: Partial<XMagicProxyData> = {
+            template: 'example.yml',
+            target: 'http://localhost:3000',
+            hostname: 'example.com',
+            // nested objects are not allowed in userData
+            userData: { nested: { a: 1 } } as any
+        };
+
+        const result = validateXMagicProxy(xMagicProxy, 'test-container');
+
+        expect(result).toBe(false);
+        expect((baseLogger.warn as any)).toHaveBeenCalledWith(
+            'Container has malformed x-magic-proxy',
+            expect.objectContaining({ zone: 'providers.docker', data: expect.objectContaining({ containerName: 'test-container', reason: expect.any(String) }) })
+        );
+    });
 });
 
 describe('Docker Provider - extractXMagicProxy', () => {
