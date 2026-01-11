@@ -4,9 +4,15 @@ import { initialize as initializeBackend } from './backends/backendPlugin';
 import { HostDB } from './hostDb';
 import { updateDatabaseFromManifest, watchDockerEvents } from './providers/docker';
 import { MagicProxyConfigFile } from './types/config';
+import { zone } from './logging/zone';
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
 
+const log = zone('index');
+
+log.info({
+    message: 'Starting Magic Proxy application',
+});
 
 const app = createApp();
 

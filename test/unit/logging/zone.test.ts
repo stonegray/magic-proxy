@@ -49,4 +49,14 @@ describe('logging/zone', () => {
         expect(warnMock).toHaveBeenCalledWith('w', { zone: 'z', data: { x: 1 } });
         expect(debugMock).toHaveBeenCalledWith('d', { zone: 'z', data: '<private>' });
     });
+    it('does not pass undefined data to baseLogger when logging only a message', () => {
+        const mock = vi.spyOn(baseLogger, 'info').mockImplementation(() => { });
+        const log = zone('myzone.subzone');
+
+        log.info('hello only');
+
+        expect(mock).toHaveBeenCalledWith('hello only', { zone: 'myzone.subzone' });
+
+        mock.mockRestore();
+    });
 });
