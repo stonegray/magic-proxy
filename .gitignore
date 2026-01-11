@@ -5,3 +5,4 @@ docker-compose.override.yml
 coverage/
 deploy.sh
 generated
+logs/
