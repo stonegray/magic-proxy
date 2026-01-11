@@ -317,4 +317,141 @@ describe('DockerProvider', () => {
             expect(mockFileWatcher.close).toHaveBeenCalled();
         });
     });
+
+    // REGRESSION: Sync serialization tests
+    // Previously, concurrent syncs could cause race conditions where containers
+    // would be removed then immediately re-added, and file writes would conflict
+    describe('Sync serialization (regression)', () => {
+        it('should not run concurrent syncs', async () => {
+            const buildManifestSpy = vi.mocked(manifestModule.buildContainerManifest);
+
+            // Create a slow mock that takes 100ms
+            let callCount = 0;
+            buildManifestSpy.mockImplementation(async () => {
+                callCount++;
+                await new Promise(resolve => setTimeout(resolve, 100));
+                return { manifest: [], results: {} };
+            });
+
+            provider = new DockerProvider(hostDb, undefined, mockDocker);
+            await provider.start();
+
+            // Clear initial sync
+            callCount = 0;
+            buildManifestSpy.mockClear();
+
+            const dataHandler = mockEventStream.on.mock.calls.find(
+                (call: any) => call[0] === 'data'
+            )?.[1];
+
+            // Fire 5 rapid events
+            for (let i = 0; i < 5; i++) {
+                const event = {
+                    Type: 'container',
+                    Action: 'create',
+                    Actor: { Attributes: { name: `container-${i}` } },
+                    id: `id-${i}`
+                };
+                dataHandler(Buffer.from(JSON.stringify(event)));
+            }
+
+            // Wait for all syncs to complete
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Should have batched updates - at most 2 calls (first + one pending)
+            expect(buildManifestSpy.mock.calls.length).toBeLessThanOrEqual(2);
+        });
+
+        it('should process pending sync after current sync completes', async () => {
+            const buildManifestSpy = vi.mocked(manifestModule.buildContainerManifest);
+
+            let syncCount = 0;
+            buildManifestSpy.mockImplementation(async () => {
+                syncCount++;
+                await new Promise(resolve => setTimeout(resolve, 50));
+                return { manifest: [], results: {} };
+            });
+
+            provider = new DockerProvider(hostDb, undefined, mockDocker);
+            await provider.start();
+
+            // Clear initial sync
+            syncCount = 0;
+            buildManifestSpy.mockClear();
+
+            const dataHandler = mockEventStream.on.mock.calls.find(
+                (call: any) => call[0] === 'data'
+            )?.[1];
+
+            // Fire first event - starts sync
+            dataHandler(Buffer.from(JSON.stringify({
+                Type: 'container',
+                Action: 'create',
+                Actor: { Attributes: { name: 'container-1' } },
+                id: 'id-1'
+            })));
+
+            // Wait a tiny bit then fire second event while first is running
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            dataHandler(Buffer.from(JSON.stringify({
+                Type: 'container',
+                Action: 'destroy',
+                Actor: { Attributes: { name: 'container-2' } },
+                id: 'id-2'
+            })));
+
+            // Wait for both to complete
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Should have run exactly 2 syncs (not 1, not more)
+            expect(syncCount).toBe(2);
+        });
+
+        it('should coalesce multiple pending syncs into one', async () => {
+            const buildManifestSpy = vi.mocked(manifestModule.buildContainerManifest);
+
+            let syncCount = 0;
+            buildManifestSpy.mockImplementation(async () => {
+                syncCount++;
+                await new Promise(resolve => setTimeout(resolve, 100));
+                return { manifest: [], results: {} };
+            });
+
+            provider = new DockerProvider(hostDb, undefined, mockDocker);
+            await provider.start();
+
+            syncCount = 0;
+            buildManifestSpy.mockClear();
+
+            const dataHandler = mockEventStream.on.mock.calls.find(
+                (call: any) => call[0] === 'data'
+            )?.[1];
+
+            // Fire first event - starts sync
+            dataHandler(Buffer.from(JSON.stringify({
+                Type: 'container',
+                Action: 'create',
+                Actor: { Attributes: { name: 'container-1' } },
+                id: 'id-1'
+            })));
+
+            // Fire 10 more events while sync is running - should all coalesce
+            await new Promise(resolve => setTimeout(resolve, 10));
+            for (let i = 2; i <= 11; i++) {
+                dataHandler(Buffer.from(JSON.stringify({
+                    Type: 'container',
+                    Action: 'create',
+                    Actor: { Attributes: { name: `container-${i}` } },
+                    id: `id-${i}`
+                })));
+            }
+
+            // Wait for completion
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Should have exactly 2 syncs: first + one coalesced pending
+            expect(syncCount).toBe(2);
+        });
+    });
 });
