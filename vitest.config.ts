@@ -4,6 +4,7 @@ export default defineConfig({
     test: {
         environment: 'node',
         include: ['test/**/*.test.ts', 'test/legacy/**/*.test.ts'],
+        setupFiles: ['test/setup/suppressConsole.ts'],
         coverage: {
             provider: 'istanbul',
             reporter: ['text', 'lcov', 'html'],
