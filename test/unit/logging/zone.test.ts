@@ -7,15 +7,6 @@ describe('logging/zone', () => {
         vi.restoreAllMocks();
     });
 
-    it('logs string messages using baseLogger with zone meta', () => {
-        const mock = vi.spyOn(baseLogger, 'info').mockImplementation(() => { });
-        const log = zone('myzone.subzone');
-
-        log.info('hello world');
-
-        expect(mock).toHaveBeenCalledWith('hello world', { zone: 'myzone.subzone' });
-    });
-
     it('attaches data when provided and not private', () => {
         const mock = vi.spyOn(baseLogger, 'info').mockImplementation(() => { });
         const log = zone('myzone.subzone');
@@ -41,7 +32,7 @@ describe('logging/zone', () => {
         const debugMock = vi.spyOn(baseLogger, 'debug').mockImplementation(() => { });
 
         const log = zone('z');
-        log.error('err');
+        log.error({ message: 'err' });
         log.warn({ message: 'w', data: { x: 1 } });
         log.debug({ message: 'd', private: true, data: { s: 's' } });
 
@@ -49,11 +40,11 @@ describe('logging/zone', () => {
         expect(warnMock).toHaveBeenCalledWith('w', { zone: 'z', data: { x: 1 } });
         expect(debugMock).toHaveBeenCalledWith('d', { zone: 'z', data: '<private>' });
     });
-    it('does not pass undefined data to baseLogger when logging only a message', () => {
+    it('does not include a data key when logging only a message payload', () => {
         const mock = vi.spyOn(baseLogger, 'info').mockImplementation(() => { });
         const log = zone('myzone.subzone');
 
-        log.info('hello only');
+        log.info({ message: 'hello only' });
 
         expect(mock).toHaveBeenCalledWith('hello only', { zone: 'myzone.subzone' });
 
