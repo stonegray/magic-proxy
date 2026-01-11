@@ -2,7 +2,7 @@ import { createApp } from './api';
 import { loadConfigFile } from './config';
 import { initialize as initializeBackend } from './backends/backendPlugin';
 import { HostDB } from './hostDb';
-import { updateDatabaseFromManifest } from './providers/docker';
+import { DockerProvider } from './providers/docker';
 import { MagicProxyConfigFile } from './types/config';
 import { zone } from './logging/zone';
 
@@ -15,6 +15,8 @@ log.info({
 });
 
 const app = createApp();
+
+let dockerProvider: DockerProvider | null = null;
 
 export async function startApp(config?: MagicProxyConfigFile) {
     try {
@@ -30,7 +32,13 @@ export async function startApp(config?: MagicProxyConfigFile) {
         // to the proxy backend for registration.
         import('./hostDispatcher').then(mod => mod.attachHostDbToBackend(hostDb));
 
-        await updateDatabaseFromManifest(hostDb);
+        // Start Docker provider for real-time container monitoring
+        dockerProvider = new DockerProvider(hostDb);
+        await dockerProvider.start();
+
+        log.info({
+            message: 'Docker provider started - monitoring for container changes'
+        });
 
         console.log('Initialization complete.');
     } catch (err) {
@@ -38,6 +46,18 @@ export async function startApp(config?: MagicProxyConfigFile) {
         process.exit(1);
     }
 }
+
+// Graceful shutdown handler
+const shutdown = () => {
+    log.info({ message: 'Shutting down gracefully...' });
+    if (dockerProvider) {
+        dockerProvider.stop();
+    }
+    process.exit(0);
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 // Immediately start the app when importing the module in normal runs
 startApp();

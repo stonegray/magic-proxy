@@ -6,7 +6,6 @@ import {
     extractXMagicProxy,
     groupContainersByComposeFile,
     buildContainerManifest,
-    updateDatabaseFromManifest,
     ProcessingResult
 } from '../../../src/providers/docker';
 import { HostDB } from '../../../src/hostDb';
@@ -51,7 +50,7 @@ describe('Docker Provider - validateXMagicProxy', () => {
         } as Partial<XMagicProxyData>;
 
         const result = validateXMagicProxy(xMagicProxy, 'test-container');
-        
+
         expect(result).toBe(false);
         expect((baseLogger.warn as any)).toHaveBeenCalledWith(
             'Container has malformed x-magic-proxy: missing required field "template"',
@@ -66,7 +65,7 @@ describe('Docker Provider - validateXMagicProxy', () => {
         } as Partial<XMagicProxyData>;
 
         const result = validateXMagicProxy(xMagicProxy, 'test-container');
-        
+
         expect(result).toBe(false);
         expect((baseLogger.warn as any)).toHaveBeenCalledWith(
             'Container has malformed x-magic-proxy: missing required field "target"',
@@ -81,7 +80,7 @@ describe('Docker Provider - validateXMagicProxy', () => {
         } as Partial<XMagicProxyData>;
 
         const result = validateXMagicProxy(xMagicProxy, 'test-container');
-        
+
         expect(result).toBe(false);
         expect((baseLogger.warn as any)).toHaveBeenCalledWith(
             'Container has malformed x-magic-proxy: missing required field "hostname"',
@@ -105,12 +104,6 @@ describe('Docker Provider - validateXMagicProxy', () => {
             template: 'example.yml',
             target: 'http://localhost:3000',
             hostname: 'example.com',
-            idle: '30m',
-            auth: {
-                type: 'oidc',
-                provider: 'google',
-                scopes: ['email', 'profile']
-            },
             userData: { custom: 'data' }
         };
 
@@ -292,60 +285,34 @@ describe('Docker Provider - groupContainersByComposeFile', () => {
     });
 });
 
-describe('Docker Provider - updateDatabaseFromManifest', () => {
-    let hostDb: HostDB;
+describe('Docker Provider - buildContainerManifest', () => {
+    let mockDocker: any;
 
     beforeEach(() => {
-        hostDb = new HostDB();
         vi.spyOn(baseLogger, 'warn').mockImplementation(() => { });
         vi.spyOn(baseLogger, 'error').mockImplementation(() => { });
         vi.spyOn(baseLogger, 'info').mockImplementation(() => { });
-    });
 
-    it('should have correct function signature', () => {
-        expect(typeof updateDatabaseFromManifest).toBe('function');
-        expect(updateDatabaseFromManifest.length).toBe(1);
-    });
-
-    it('should return ProcessingResult object', async () => {
-        // This test verifies the return type structure
-        const result = await updateDatabaseFromManifest(hostDb);
-        
-        expect(result).toBeDefined();
-        expect(typeof result).toBe('object');
-    });
-
-    it('should log summary of processed containers', async () => {
-        await updateDatabaseFromManifest(hostDb);
-        
-        expect((baseLogger.info as any)).toHaveBeenCalledWith(
-            'Processed container(s)',
-            expect.objectContaining({ data: expect.objectContaining({ total: expect.any(Number) }) })
-        );
-    });
-});
-
-describe('Docker Provider - buildContainerManifest', () => {
-    beforeEach(() => {
-        vi.spyOn(baseLogger, 'warn').mockImplementation(() => { });
-        vi.spyOn(baseLogger, 'error').mockImplementation(() => { });
+        mockDocker = {
+            listContainers: vi.fn().mockResolvedValue([])
+        };
     });
 
     it('should return manifest and results', async () => {
-        const { manifest, results } = await buildContainerManifest();
-        
+        const { manifest, results } = await buildContainerManifest(mockDocker);
+
         expect(Array.isArray(manifest)).toBe(true);
         expect(typeof results).toBe('object');
     });
 
     it('should have correct result structure', async () => {
-        const { results } = await buildContainerManifest();
-        
+        const { results } = await buildContainerManifest(mockDocker);
+
         // Results should be organized by compose file path
         for (const [composePath, containerResults] of Object.entries(results)) {
             expect(typeof composePath).toBe('string');
             expect(typeof containerResults).toBe('object');
-            
+
             // Each container should have a status string
             for (const [containerName, status] of Object.entries(containerResults)) {
                 expect(typeof containerName).toBe('string');
