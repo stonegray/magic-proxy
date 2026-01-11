@@ -179,7 +179,7 @@ describe('Backend Plugin Router', () => {
         await backendPlugin.initialize(config);
 
         const appData: XMagicProxyData = {
-            template: 'default',
+            template: 'default.yml',
             target: 'http://service:7000',
             hostname: 'example.org',
         };
@@ -197,7 +197,7 @@ describe('Backend Plugin Router', () => {
         const config = createMockConfig();
         await backendPlugin.initialize(config);
 
-        const appData: XMagicProxyData = { template: 'default', target: 'http://temp:8000', hostname: 'temp' };
+        const appData: XMagicProxyData = { template: 'default.yml', target: 'http://temp:8000', hostname: 'temp' };
         const entry: HostEntry = { containerName: 'temp', xMagicProxy: appData, composeFilePath: '', composeData: {} as ComposeFileData, lastChanged: Date.now(), state: {} };
         await backendPlugin.addProxiedApp(entry);
 
