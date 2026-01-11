@@ -11,6 +11,7 @@ const log = zone('providers.docker');
 
 // Constants
 const COMPOSE_CONFIG_LABEL = 'com.docker.compose.project.config_files';
+const COMPOSE_SERVICE_LABEL = 'com.docker.compose.service';
 const CONTAINER_NAME_PREFIX = /^\//;
 
 // Return type for updateDatabaseFromManifest
@@ -91,16 +92,24 @@ export function validateXMagicProxy(
 }
 
 /**
- * Extracts x-magic-proxy configuration from compose file services
+ * Extracts x-magic-proxy configuration for a specific service from compose file
+ * @param composeData - The parsed compose file data
+ * @param serviceName - The service name to look up (optional, if not provided returns first found)
  */
 export function extractXMagicProxy(
-    composeData: ComposeFileData | undefined
+    composeData: ComposeFileData | undefined,
+    serviceName?: string
 ): Partial<XMagicProxyData> | undefined {
     if (!composeData?.services) {
         return undefined;
     }
 
-    // Find the first service with x-magic-proxy defined
+    // If service name provided, look up that specific service
+    if (serviceName && composeData.services[serviceName]) {
+        return composeData.services[serviceName]['x-magic-proxy'];
+    }
+
+    // Fallback: find the first service with x-magic-proxy defined
     for (const service of Object.values(composeData.services)) {
         if (service['x-magic-proxy']) {
             return service['x-magic-proxy'];
@@ -260,9 +269,10 @@ export async function buildContainerManifest(): Promise<{
         // Process each container in this compose file
         for (const container of composeFile.containers) {
             const containerName = extractContainerName(container);
+            const serviceName = container.Labels[COMPOSE_SERVICE_LABEL];
 
-            // Extract x-magic-proxy configuration
-            const xMagicProxy = extractXMagicProxy(composeFile.composeData);
+            // Extract x-magic-proxy configuration for this specific service
+            const xMagicProxy = extractXMagicProxy(composeFile.composeData, serviceName);
 
             if (!xMagicProxy) {
                 // Container doesn't have x-magic-proxy - this is normal, just skip silently
