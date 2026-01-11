@@ -38,6 +38,7 @@ http:
         - web
       middlewares:
         - geoblock
+        - magic-proxy-{{ app_name }}-oidc
       service: magic-proxy-{{ app_name }}
 
   services:

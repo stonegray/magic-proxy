@@ -1,0 +1,40 @@
+// Unused but keep it 
+function watchDockerEvents(onContainerChange: () => void) {
+    const THROTTLE_MS = 1000; // rate limit interval
+    let lastCall = 0;
+    let scheduled: ReturnType<typeof setTimeout> | null = null;
+
+    function scheduleCall() {
+        const now = Date.now();
+        const since = now - lastCall;
+
+        if (since >= THROTTLE_MS) {
+            lastCall = now;
+            try { onContainerChange(); } catch { /* ignore */ }
+            return;
+        }
+
+        if (scheduled) return; // already scheduled
+
+        scheduled = setTimeout(() => {
+            scheduled = null;
+            lastCall = Date.now();
+            try { onContainerChange(); } catch { /* ignore */ }
+        }, THROTTLE_MS - since);
+    }
+
+    async function connect() {
+        const stream = await docker.getEvents({ filters: { type: ['container'] } });
+        stream.on('data', (chunk: Buffer) => {
+            try {
+                const ev = JSON.parse(chunk.toString());
+                if (ev.Type === 'container' && ['create', 'start', 'die', 'destroy'].includes(ev.Action)) {
+                    scheduleCall();
+                }
+            } catch { /* ignore */ }
+        });
+        stream.on('error', () => setTimeout(connect, 1000));
+        stream.on('end', () => setTimeout(connect, 1000));
+    }
+    connect();
+}

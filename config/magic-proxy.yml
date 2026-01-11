@@ -14,6 +14,7 @@ traefik:
   # in their x-magic-proxy.template field
   templates:
     - ./template/oidc.yml
+    - ./template/example.yml
 api:
   # Enable or disable the Magic Proxy API; required for docker health, external logging. 
   enabled: true

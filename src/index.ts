@@ -2,7 +2,7 @@ import { createApp } from './api';
 import { loadConfigFile } from './config';
 import { initialize as initializeBackend } from './backends/backendPlugin';
 import { HostDB } from './hostDb';
-import { updateDatabaseFromManifest, watchDockerEvents } from './docker';
+import { updateDatabaseFromManifest, watchDockerEvents } from './providers/docker';
 import { MagicProxyConfigFile } from './types/config';
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
@@ -25,11 +25,6 @@ export async function startApp(config?: MagicProxyConfigFile) {
         import('./hostDispatcher').then(mod => mod.attachHostDbToBackend(hostDb));
 
         await updateDatabaseFromManifest(hostDb);
-
-        watchDockerEvents(() => {
-            // Dispatch the async update but keep the callback return type as void
-            void updateDatabaseFromManifest(hostDb).catch(err => console.error('Error updating manifest from Docker events:', err));
-        });
 
         console.log('Initialization complete.');
     } catch (err) {
