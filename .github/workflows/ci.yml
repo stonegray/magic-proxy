@@ -73,8 +73,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            # 'latest' is only set on tag pushes
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+            # Set 'latest' for main branch and tag pushes so pushes always have a tag
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref_type == 'tag' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
