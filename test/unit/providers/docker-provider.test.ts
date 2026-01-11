@@ -289,42 +289,6 @@ describe('DockerProvider', () => {
         });
     });
 
-    describe('Rate limiting', () => {
-        it('should limit update frequency', async () => {
-            const buildManifestSpy = vi.mocked(manifestModule.buildContainerManifest);
-            buildManifestSpy.mockResolvedValue({ manifest: [], results: {} });
-
-            provider = new DockerProvider(hostDb, undefined, mockDocker);
-            await provider.start();
-
-            // Clear initial sync
-            buildManifestSpy.mockClear();
-
-            const dataHandler = mockEventStream.on.mock.calls.find(
-                (call: any) => call[0] === 'data'
-            )?.[1];
-
-            // Trigger rapid events
-            for (let i = 0; i < 3; i++) {
-                const event = {
-                    Type: 'container',
-                    Action: 'create',
-                    Actor: { Attributes: { name: `container-${i}` } },
-                    id: `id-${i}`
-                };
-                dataHandler(Buffer.from(JSON.stringify(event)));
-            }
-
-            // Wait for rate limiter to process
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Should batch updates - not execute once per event
-            // Expect at most 2 calls (one immediate, one after rate limit)
-            expect(buildManifestSpy.mock.calls.length).toBeLessThanOrEqual(2);
-            expect(buildManifestSpy.mock.calls.length).toBeGreaterThan(0);
-        }, 3000);
-    });
-
     describe('stop', () => {
         it('should clean up event stream and file watchers', async () => {
             const composeFiles = [

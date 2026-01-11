@@ -118,12 +118,17 @@ export function extractXMagicProxy(
         return undefined;
     }
 
-    // If service name provided, look up that specific service
-    if (serviceName && composeData.services[serviceName]) {
+    // If service name provided, look up that specific service only
+    if (serviceName) {
+        // Service name specified but not found in compose file - return undefined
+        // (the container is orphaned or the service was removed)
+        if (!composeData.services[serviceName]) {
+            return undefined;
+        }
         return composeData.services[serviceName]['x-magic-proxy'];
     }
 
-    // Fallback: find the first service with x-magic-proxy defined
+    // Fallback (no service name): find the first service with x-magic-proxy defined
     for (const service of Object.values(composeData.services)) {
         if (service['x-magic-proxy']) {
             return service['x-magic-proxy'];

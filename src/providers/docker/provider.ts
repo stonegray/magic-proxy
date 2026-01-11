@@ -9,51 +9,6 @@ import { buildContainerManifest } from './manifest';
 const log = zone('providers.docker');
 
 /**
- * Rate limiter that ensures operations run at most once per interval
- */
-class RateLimiter {
-    private isRunning = false;
-    private pendingUpdate = false;
-    private lastUpdateTime = 0;
-    private readonly minInterval: number;
-
-    constructor(minIntervalMs: number = 100) {
-        this.minInterval = minIntervalMs;
-    }
-
-    async schedule(operation: () => Promise<void>): Promise<void> {
-        if (this.isRunning) {
-            this.pendingUpdate = true;
-            return;
-        }
-
-        const delay = Math.max(0, this.minInterval - (Date.now() - this.lastUpdateTime));
-        if (delay > 0) {
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-
-        await this.execute(operation);
-    }
-
-    private async execute(operation: () => Promise<void>): Promise<void> {
-        this.isRunning = true;
-        this.pendingUpdate = false;
-
-        try {
-            await operation();
-            this.lastUpdateTime = Date.now();
-        } finally {
-            this.isRunning = false;
-
-            if (this.pendingUpdate) {
-                this.pendingUpdate = false;
-                setImmediate(() => this.schedule(operation));
-            }
-        }
-    }
-}
-
-/**
  * Docker event stream interface
  */
 interface EventStream {
@@ -68,15 +23,15 @@ interface EventStream {
 export class DockerProvider {
     private docker: Docker;
     private hostDb: HostDB;
-    private rateLimiter: RateLimiter;
     private fileWatchers = new Map<string, fs.FSWatcher>();
     private eventStream?: EventStream;
     private isActive = false;
+    private syncInProgress = false;
+    private syncPending = false;
 
     constructor(hostDb: HostDB, config?: DockerProviderConfig, docker?: Docker) {
         this.docker = docker || new Docker();
         this.hostDb = hostDb;
-        this.rateLimiter = new RateLimiter(config?.syncIntervalMs ?? 1000);
     }
 
     /**
@@ -296,10 +251,34 @@ export class DockerProvider {
     }
 
     /**
-     * Schedule a database sync with rate limiting
+     * Schedule a database sync - ensures only one sync runs at a time
      */
     private scheduleSync(): void {
-        this.rateLimiter.schedule(() => this.syncDatabase());
+        if (this.syncInProgress) {
+            this.syncPending = true;
+            return;
+        }
+        this.runSync();
+    }
+
+    /**
+     * Run the sync operation with serialization
+     */
+    private async runSync(): Promise<void> {
+        this.syncInProgress = true;
+        this.syncPending = false;
+
+        try {
+            await this.syncDatabase();
+        } finally {
+            this.syncInProgress = false;
+
+            // If another sync was requested while we were running, run it now
+            if (this.syncPending) {
+                this.syncPending = false;
+                setImmediate(() => this.runSync());
+            }
+        }
     }
 
     /**
