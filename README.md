@@ -1,5 +1,9 @@
 <img src=".github/img/splash.jpeg">
 
+<br/>
+
+[![CI/CD](https://github.com/stonegray/magic-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/stonegray/magic-proxy/actions/workflows/ci.yml)
+
 magic-proxy automatically configures your proxy by reading `x-magic-proxy-descriptor` fields embedded in docker compose files, allowing you to simply bring the compose up and trust that your proxy will automatically configure itself without user intervention. 
 
 magic-proxy passively streams events from your `docker.sock` to ensure near-instant configuration of your proxy, without any polling overhead.
