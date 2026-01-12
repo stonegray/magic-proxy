@@ -31,26 +31,32 @@ export function errorHandler(
 ): void {
     const errorId = generateErrorId();
 
+    // Extract error properties with safe type handling
+    const errorObj = err as any; // Allow accessing arbitrary properties
+    const errorMessage = errorObj?.message ?? String(err);
+    const errorType = errorObj?.constructor?.name ?? 'Unknown';
+    const statusCode = errorObj?.statusCode ?? errorObj?.status ?? 500;
+    const errorCode = errorObj?.code;
+
     // Log the full error internally with correlation ID (safe location)
     log.error({
         message: 'API error',
         data: {
             errorId,
-            type: err?.constructor?.name || 'Unknown',
-            message: err?.message || String(err)
+            type: errorType,
+            message: errorMessage
         }
     });
 
     // Return safe error response to client with error ID for tracing
-    const statusCode = err?.statusCode || err?.status || 500;
     const errorResponse: ErrorResponse = {
         error: 'An error occurred processing your request',
         errorId
     };
 
     // Add code if it's a validation error or known error type
-    if (err?.code) {
-        errorResponse.code = err.code;
+    if (errorCode) {
+        errorResponse.code = errorCode;
     }
 
     res.status(statusCode).json(errorResponse);

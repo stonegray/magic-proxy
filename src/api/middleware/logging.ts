@@ -12,8 +12,8 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
     const clientIp = getClientIP(req);
 
     // Override res.end to capture response
-    const originalEnd = res.end;
-    res.end = function (chunk?: Buffer | string, encoding?: string): Response {
+    const originalEnd = res.end.bind(res);
+    res.end = function (...args: any[]): Response {
         const duration = Date.now() - startTime;
 
         log.debug({
@@ -27,8 +27,8 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
             }
         });
 
-        return originalEnd.call(this, chunk, encoding);
-    };
+        return originalEnd(...args);
+    } as typeof res.end;
 
     next();
 }
