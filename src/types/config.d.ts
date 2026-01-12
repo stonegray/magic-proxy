@@ -1,3 +1,16 @@
+export interface APIConfig {
+    // Enable or disable the Magic Proxy API
+    enabled: boolean;
+    // Port for the Magic Proxy API
+    port: number;
+    // Optional API key for authentication (if set, all requests must provide this key)
+    key?: string;
+    // Allow listing all available API routes (default: false)
+    allowListingRoutes?: boolean;
+    // Request timeout in milliseconds (default: 1000ms)
+    timeout?: number;
+}
+
 export type MagicProxyConfigFile = {
     proxyBackend: 'traefik'; // currently only traefik is supported
     traefik?: {
@@ -7,12 +20,7 @@ export type MagicProxyConfigFile = {
         // Services in compose files should reference these by filename
         templates?: string[];
     };
-    api?: {
-        // Enable or disable the Magic Proxy API
-        enabled: boolean;
-        // Port for the Magic Proxy API
-        port: number;
-    };
+    api?: APIConfig;
 
     // Allow additional properties on the config file object
     [key: string]: unknown; // allow additional properties

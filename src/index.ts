@@ -1,12 +1,10 @@
-import { createApp } from './api';
 import { loadConfigFile } from './config';
 import { initialize as initializeBackend } from './backends/backendPlugin';
 import { HostDB } from './hostDb';
 import { DockerProvider } from './providers/docker';
 import { MagicProxyConfigFile } from './types/config';
 import { zone } from './logging/zone';
-
-const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+import { startWatchingConfigFile, resetRestartFlag } from './configWatcher';
 
 const log = zone('index');
 
@@ -14,9 +12,9 @@ log.info({
     message: 'Starting Magic Proxy application',
 });
 
-const app = createApp();
-
 let dockerProvider: DockerProvider | null = null;
+let configWatcherInitialized = false;
+let stopAPI: (() => void) | null = null;
 
 export async function startApp(config?: MagicProxyConfigFile) {
     try {
@@ -40,11 +38,51 @@ export async function startApp(config?: MagicProxyConfigFile) {
             message: 'Docker provider started - monitoring for container changes'
         });
 
+        // Handle API based on config
+        if (cfg.api?.enabled === true) {
+            const apiModule = await import('./api');
+            stopAPI = apiModule.stopAPI;
+            await apiModule.startAPI(cfg.api);
+        } else {
+            // API is disabled in config, stop if running
+            if (stopAPI) {
+                stopAPI();
+                stopAPI = null;
+            }
+        }
+
         console.log('Initialization complete.');
+
+        // Set up config file watcher on first start
+        if (!configWatcherInitialized) {
+            configWatcherInitialized = true;
+            startWatchingConfigFile(handleConfigChange);
+        } else {
+            // If restarting, just reset the restart flag
+            resetRestartFlag();
+        }
     } catch (err) {
         console.error('Initialization error:', err instanceof Error ? err.message : String(err));
         process.exit(1);
     }
+}
+
+/**
+ * Handler called when config file changes
+ */
+async function handleConfigChange(newConfig: MagicProxyConfigFile): Promise<void> {
+    log.info({
+        message: 'Config file changed - restarting application'
+    });
+    
+    // Clean up current app
+    if (dockerProvider) {
+        dockerProvider.stop();
+        dockerProvider = null;
+    }
+    
+    // Restart with new config
+    await startApp(newConfig);
 }
 
 // Graceful shutdown handler
@@ -59,9 +97,5 @@ const shutdown = () => {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-// Immediately start the app when importing the module in normal runs
+// Immediately start the app when this module is imported
 startApp();
-
-app.listen(port, () => {
-    console.log(`Docker management API listening on port ${port}`);
-});
