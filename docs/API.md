@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Magic Proxy API provides a REST interface for monitoring and managing the proxy. It includes comprehensive security features including authentication, rate limiting, input validation, and CORS restrictions.
+The Magic Proxy API provides a REST interface for monitoring. It includes comprehensive security features including authentication, rate limiting, input validation, and CORS restrictions.
 
 ## Configuration
 
@@ -19,6 +19,7 @@ api:
 
 ## Security Features
 
+
 ### 1. **API Key Authentication** (Optional)
 When `api.key` is configured, all requests must include the API key via:
 - Header: `X-API-Key: your-secret-key`
@@ -27,40 +28,17 @@ When `api.key` is configured, all requests must include the API key via:
 Requests without a valid key receive `401 Unauthorized`.
 
 ### 2. **CPU-Aware Rate Limiting**
-Global rate limiting that adjusts based on CPU usage:
-- **<60% CPU**: 10 requests/second
-- **60-90% CPU**: Logarithmic scale from 10 → 1 req/s
-- **90-95% CPU**: Linear scale from 1 → 0.1 req/s  
-- **≥95% CPU**: 0.1 requests/second
+Rate-limited requests receive `429 Too Many Requests`. The allowable rate limit is dynamically reduced under high CPU loads; when it exceeds 60% system load it will start limting and continue until it reaches 1% of it's original allowed RPS. Limits are global. 
 
-Rate-limited requests receive `429 Too Many Requests`.
-
-### 3. **Input Validation**
-- **Query parameters**: Maximum 128 characters per parameter
-- **Request body**: Maximum 10KB
-- **Field names**: Alphanumeric, underscore, dash only (0-64 chars)
-
-Invalid inputs receive `400 Bad Request`.
-
-### 4. **Security Headers** (via Helmet)
-- Cross-Origin Resource Policy: `same-origin`
-- Cross-Origin Embedder Policy: enabled
-- Cross-Origin Opener Policy: `same-origin`
-- X-Content-Type-Options: `nosniff`
-- X-Frame-Options: `DENY`
-
-### 5. **Error Sanitization**
+### 3. **Error Sanitization**
 All errors return generic messages to prevent leaking internal details:
 ```json
 {
-  "error": "An error occurred processing your request"
+  "error": "An error occurred processing your request",
+  "errorId": "<random 8 chars>"
 }
 ```
-
-No stack traces or file paths are exposed to clients.
-
-### 6. **Request Timeout**
-All requests timeout after the configured duration (default 1000ms).
+No stack traces or file paths are exposed to clients. They can be retrieved by viewing the logs and correlating the errorId.
 
 ## Endpoints
 
@@ -159,6 +137,23 @@ apiMessageBroker.setField('health', {
 | 413 | Payload Too Large | Request body exceeds 10KB |
 | 429 | Too Many Requests | Rate limit exceeded |
 | 500 | Internal Server Error | Unexpected error occurred |
+
+## Error Responses
+
+All error responses include an `errorId` field (8-character hex string) that can be used to correlate the client error with server logs:
+
+```json
+{
+  "error": "An error occurred processing your request",
+  "errorId": "a1b2c3d4"
+}
+```
+
+**To trace an error:**
+1. Note the `errorId` from the error response
+2. Search logs for the same `errorId` to see the full error details (stack trace, error type, etc.)
+
+This allows clients to report errors while keeping the API response safe from information leaks.
 
 ## Examples
 
