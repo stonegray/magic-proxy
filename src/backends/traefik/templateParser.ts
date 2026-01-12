@@ -4,28 +4,38 @@ import { zone } from '../../logging/zone';
 
 const log = zone('backends.traefik.template');
 
-/** Pattern for template variables: {{ variable_name }} */
-const VARIABLE_PATTERN = /{{\s*([a-zA-Z0-9_]+)\s*}}/g;
+/** Pattern for template variables: {{ variable_name }} or {{ object.property }} */
+const VARIABLE_PATTERN = /{{\s*([a-zA-Z0-9_.]+)\s*}}/g;
 
-/** Pattern for valid variable names */
-const VALID_KEY_PATTERN = /^[a-zA-Z0-9_]+$/;
+/** Pattern for valid variable names (alphanumeric, underscores, and dots for nested access) */
+const VALID_KEY_PATTERN = /^[a-zA-Z0-9_.]+$/;
 
 /**
  * Build the context object from app name and proxy data.
  * Core keys (app_name, hostname, target_url) cannot be overwritten by userData.
+ * Supports both:
+ * - Flat keys: {{ port }} (for backward compatibility)
+ * - Nested access: {{ userData.port }} (explicit namespace)
  */
-function buildContext(appName: string, data: XMagicProxyData): Record<string, string> {
-    const context: Record<string, string> = {
+function buildContext(appName: string, data: XMagicProxyData): Record<string, any> {
+    const CORE_KEYS = new Set(['app_name', 'hostname', 'target_url', 'userData']);
+    
+    const context: Record<string, any> = {
         app_name: appName,
         hostname: data.hostname,
         target_url: data.target,
+        userData: {},
     };
 
-    // Merge user-supplied data (skip invalid keys and reserved names)
+    // Merge user-supplied data into both flat context and userData namespace
+    // Skip keys that match core variables to prevent overwrites
     if (data.userData && typeof data.userData === 'object') {
         for (const [key, value] of Object.entries(data.userData)) {
-            if (VALID_KEY_PATTERN.test(key) && !(key in context)) {
-                context[key] = value == null ? '' : String(value);
+            if (VALID_KEY_PATTERN.test(key) && !CORE_KEYS.has(key)) {
+                const stringValue = value == null ? '' : String(value);
+                // Add to both flat keys ({{ port }}) and nested namespace ({{ userData.port }})
+                context[key] = stringValue;
+                context.userData[key] = stringValue;
             }
         }
     }
@@ -55,10 +65,29 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
     // Track unknown variables
     const unknownVariables: string[] = [];
 
+    /**
+     * Get a value from context, supporting nested property access with dot notation.
+     * e.g., "userData.foo" returns context.userData.foo
+     */
+    function getContextValue(path: string): string | undefined {
+        const parts = path.split('.');
+        let value: any = context;
+        
+        for (const part of parts) {
+            if (value == null || typeof value !== 'object') {
+                return undefined;
+            }
+            value = value[part];
+        }
+        
+        return value == null ? undefined : String(value);
+    }
+
     // Replace all {{ key }} occurrences
     const rendered = template.replace(VARIABLE_PATTERN, (_match, key: string) => {
-        if (key in context) {
-            return context[key];
+        const value = getContextValue(key);
+        if (value !== undefined) {
+            return value;
         }
         // Track unknown variable for error reporting
         unknownVariables.push(key);
