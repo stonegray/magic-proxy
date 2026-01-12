@@ -41,8 +41,9 @@ async function loadTemplate(templatePath: string): Promise<string> {
 
 /**
  * Creates a Traefik config fragment by rendering the appropriate template.
+ * Returns null if template rendering fails.
  */
-function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYamlFormat {
+function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYamlFormat | null {
     lastUserData = data.userData ? JSON.stringify(data.userData) : null;
 
     const templateContent = templates.get(data.template);
@@ -57,10 +58,18 @@ function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYam
         data: { appName, template: data.template, target: data.target, hostname: data.hostname }
     });
 
-    const rendered = renderTemplate(templateContent, appName, data);
-    lastRendered = rendered;
-
-    return yaml.load(rendered) as TraefikConfigYamlFormat;
+    try {
+        const rendered = renderTemplate(templateContent, appName, data);
+        lastRendered = rendered;
+        return yaml.load(rendered) as TraefikConfigYamlFormat;
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        log.error({
+            message: 'Failed to render template',
+            data: { appName, error: message }
+        });
+        return null;
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,7 +113,7 @@ export async function initialize(config?: MagicProxyConfigFile): Promise<void> {
     }
 
     log.info({ message: 'Initializing Traefik backend', data: { templateCount: templatePaths.length } });
-
+    
     // Load all templates concurrently
     const loadResults = await Promise.all(
         templatePaths.map(async (templatePath) => ({
@@ -138,6 +147,7 @@ export async function initialize(config?: MagicProxyConfigFile): Promise<void> {
 
 /**
  * Add or update a proxied application.
+ * If template rendering fails, the host is skipped with an error log.
  */
 export async function addProxiedApp(entry: HostEntry): Promise<void> {
     const { containerName, xMagicProxy } = entry;
@@ -146,7 +156,16 @@ export async function addProxiedApp(entry: HostEntry): Promise<void> {
         data: { containerName, hostname: xMagicProxy.hostname, target: xMagicProxy.target, template: xMagicProxy.template }
     });
 
-    manager.register(containerName, makeAppConfig(containerName, xMagicProxy));
+    const config = makeAppConfig(containerName, xMagicProxy);
+    if (config === null) {
+        log.error({
+            message: 'Skipping host due to template rendering failure',
+            data: { containerName, hostname: xMagicProxy.hostname }
+        });
+        return;
+    }
+
+    manager.register(containerName, config);
     await manager.flushToDisk();
 }
 

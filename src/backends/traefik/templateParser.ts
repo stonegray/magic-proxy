@@ -36,10 +36,13 @@ function buildContext(appName: string, data: XMagicProxyData): Record<string, st
 /**
  * Render a template string by replacing {{ variable }} placeholders.
  * 
+ * Throws an error if any template variables cannot be resolved.
+ * 
  * @param template - The template content with {{ variable }} placeholders
  * @param appName - The application name
  * @param data - The proxy configuration data
  * @returns The rendered template as normalized YAML
+ * @throws Error if unknown template variables are encountered
  */
 export function renderTemplate(template: string, appName: string, data: XMagicProxyData): string {
     const context = buildContext(appName, data);
@@ -49,26 +52,37 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
         data: { appName, context: { app_name: context.app_name, hostname: context.hostname, target_url: context.target_url } }
     });
 
+    // Track unknown variables
+    const unknownVariables: string[] = [];
+
     // Replace all {{ key }} occurrences
     const rendered = template.replace(VARIABLE_PATTERN, (_match, key: string) => {
         if (key in context) {
             return context[key];
         }
-        // Unknown variable - leave as-is and warn
-        log.warn({ message: 'Unknown template variable', data: { appName, variable: key } });
-        return `{{ ${key} }}`;
+        // Track unknown variable for error reporting
+        unknownVariables.push(key);
+        return _match; // Return original text
     });
+
+    // If there were unknown variables, throw an error
+    if (unknownVariables.length > 0) {
+        const uniqueVars = [...new Set(unknownVariables)];
+        const message = `Template contains unknown variables: ${uniqueVars.join(', ')}`;
+        log.error({ message, data: { appName, unknownVariables: uniqueVars } });
+        throw new Error(message);
+    }
 
     // Parse and re-dump for consistent YAML formatting
     try {
         const parsed = yaml.load(rendered);
         return yaml.dump(parsed, { noRefs: true, skipInvalid: true });
     } catch (err) {
-        // Return raw rendered content if YAML parsing fails
-        log.warn({
+        const message = err instanceof Error ? err.message : String(err);
+        log.error({
             message: 'Template produced invalid YAML',
-            data: { appName, error: err instanceof Error ? err.message : String(err) }
+            data: { appName, error: message }
         });
-        return rendered;
+        throw new Error(`Template produced invalid YAML: ${message}`);
     }
 }
