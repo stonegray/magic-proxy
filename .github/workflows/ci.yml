@@ -6,7 +6,8 @@ on:
       - 'feat/**'
       - 'main'
     tags:
-      - 'v*' 
+      - 'v*'
+  pull_request:
 
 permissions:
   contents: read
