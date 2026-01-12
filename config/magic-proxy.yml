@@ -35,5 +35,6 @@ api:
   timeout: 1000
 
   # Allow clients to list all available API routes at GET /api/routes
-  # Disable in production to avoid information disclosure about available endpoints
-  allowListingRoutes: false
+  # Risk: An attacker with authenticated access to the API could heuristically detect
+  # the kind of proxy and provider you're using, eg. "traefik" "docker"
+  allowListingRoutes: true

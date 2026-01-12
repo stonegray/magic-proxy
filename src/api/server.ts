@@ -53,6 +53,7 @@ export async function startAPI(apiConfig: APIConfig): Promise<void> {
     });
 
     // Routes listing endpoint (optional)
+    // MUST be registered BEFORE the parameterized /api/:fieldName route
     if (apiConfig.allowListingRoutes === true) {
         app.get('/api/routes', (_req, res) => {
             const routes = Array.from(apiMessageBroker.getRoutes());
@@ -65,14 +66,20 @@ export async function startAPI(apiConfig: APIConfig): Promise<void> {
         });
     }
 
-    // Listen for field updates from the message broker and create/update routes
-    apiMessageBroker.on('field:update', ({ name, data }) => {
-        const routePath = `/api/${name}`;
-        log.debug({ message: 'Creating API route', data: { routePath } });
-
-        app.get(routePath, (_req, res) => {
-            res.json(data);
-        });
+    // Dynamic route handler for apiMessageBroker fields
+    // This uses a parameterized route to avoid registering routes dynamically
+    // Note: Specific routes like /api/routes must be registered BEFORE this
+    app.get('/api/:fieldName', (req, res, next) => {
+        const { fieldName } = req.params;
+        const data = apiMessageBroker.getField(fieldName);
+        
+        if (!data) {
+            // Field doesn't exist, pass to 404 handler
+            next();
+            return;
+        }
+        
+        res.json(data);
     });
 
     // 404 handler - must be before error handler
