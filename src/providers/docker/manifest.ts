@@ -78,7 +78,7 @@ export function logManifestSummary(results: ProcessingResult): void {
         (sum, r) => sum + Object.values(r).filter(s => s === 'ok').length, 0
     );
 
-    log.info({
+    log.debug({
         message: 'Processed container(s)',
         data: { total, added, skippedOrFailed: total - added }
     });

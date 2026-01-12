@@ -196,12 +196,6 @@ async function doFlushToDisk(): Promise<void> {
         throw new Error(`Invalid config generated: ${validation.error}`);
     }
 
-    if (validation.warnings?.length) {
-        for (const warning of validation.warnings) {
-            log.warn({ message: warning });
-        }
-    }
-
     await writeAtomically(outputFile, yamlText);
 }
 

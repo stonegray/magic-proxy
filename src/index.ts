@@ -8,7 +8,7 @@ import { startWatchingConfigFile, resetRestartFlag } from './configWatcher';
 
 const log = zone('index');
 
-log.info({
+log.debug({
     message: 'Starting Magic Proxy application',
 });
 
@@ -34,7 +34,7 @@ export async function startApp(config?: MagicProxyConfigFile) {
         dockerProvider = new DockerProvider(hostDb);
         await dockerProvider.start();
 
-        log.info({
+        log.debug({
             message: 'Docker provider started - monitoring for container changes'
         });
 
@@ -71,7 +71,7 @@ export async function startApp(config?: MagicProxyConfigFile) {
  * Handler called when config file changes
  */
 async function handleConfigChange(newConfig: MagicProxyConfigFile): Promise<void> {
-    log.info({
+    log.debug({
         message: 'Config file changed - restarting application'
     });
     

@@ -44,13 +44,13 @@ export class DockerProvider {
         }
 
         this.isActive = true;
-        log.info({ message: 'Starting Docker provider' });
+        log.debug({ message: 'Starting Docker provider' });
 
         await this.syncDatabase();
         this.watchDockerEvents();
         await this.updateFileWatchers();
 
-        log.info({ message: 'Docker provider started successfully' });
+        log.debug({ message: 'Docker provider started successfully' });
     }
 
     /**
@@ -59,7 +59,7 @@ export class DockerProvider {
     stop(): void {
         if (!this.isActive) return;
 
-        log.info({ message: 'Stopping Docker provider' });
+        log.debug({ message: 'Stopping Docker provider' });
         this.isActive = false;
 
         // Clean up Docker event stream
@@ -76,7 +76,7 @@ export class DockerProvider {
         }
         this.fileWatchers.clear();
 
-        log.info({ message: 'Docker provider stopped' });
+        log.debug({ message: 'Docker provider stopped' });
     }
 
     /**
@@ -134,7 +134,7 @@ export class DockerProvider {
 
         const syncActions = ['create', 'start', 'destroy', 'die', 'stop'];
         if (syncActions.includes(action)) {
-            log.info({ message: `Container ${action}`, data: { containerName, id } });
+            log.debug({ message: `Container ${action}`, data: { containerName, id } });
             this.scheduleSync();
         }
     }
@@ -147,7 +147,7 @@ export class DockerProvider {
 
         setTimeout(() => {
             if (this.isActive) {
-                log.info({ message: 'Reconnecting to Docker event stream' });
+                log.debug({ message: 'Reconnecting to Docker event stream' });
                 this.watchDockerEvents();
             }
         }, 5000);
@@ -173,7 +173,7 @@ export class DockerProvider {
                 data: { path, eventType, filename, isActive: this.isActive }
             });
 
-            log.info({ message: 'Compose file changed', data: { path, eventType } });
+            log.debug({ message: 'Compose file changed', data: { path, eventType } });
 
             // On rename events (atomic writes), re-attach the watcher
             // because the original inode may have been replaced
@@ -287,13 +287,13 @@ export class DockerProvider {
      * Synchronize the database with current Docker state
      */
     private async syncDatabase(): Promise<void> {
-        log.info({ message: 'Starting database sync' });
+        log.debug({ message: 'Starting database sync' });
 
         try {
             const { manifest } = await buildContainerManifest(this.docker);
             const manifestNames = new Set(manifest.map(e => e.containerName));
 
-            log.info({
+            log.debug({
                 message: 'Manifest built',
                 data: {
                     containerCount: manifest.length,
@@ -358,7 +358,7 @@ export class DockerProvider {
             let entriesRemoved = 0;
             for (const entry of this.hostDb.getAll()) {
                 if (!manifestNames.has(entry.containerName)) {
-                    log.info({
+                    log.debug({
                         message: 'Removing container no longer referenced',
                         data: { containerName: entry.containerName }
                     });
@@ -370,7 +370,7 @@ export class DockerProvider {
             // Log if file change resulted in no database updates
             const totalChanges = entriesAdded + entriesUpdated + entriesRemoved;
             if (totalChanges === 0 && manifest.length > 0) {
-                log.info({
+                log.debug({
                     message: 'Database sync completed with no changes',
                     data: {
                         manifestCount: manifest.length,

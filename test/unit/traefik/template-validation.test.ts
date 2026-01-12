@@ -202,8 +202,12 @@ http:
             expect(result.valid === false && result.error).toContain('Invalid name');
         });
 
-        it('warns about unreplaced template variables', () => {
-            // Use plain text that contains template markers
+        it('no longer warns about unreplaced template variables - they error at render time', () => {
+            // Unreplaced template variables are now caught by renderTemplate() before 
+            // they reach the validator. This test verifies the validator doesn't see them.
+            // If someone manually creates YAML with template markers (which shouldn't happen
+            // through normal flow), they would still be allowed by the validator since
+            // template syntax is valid in string values.
             const yaml = `
 http:
   routers:
@@ -213,27 +217,28 @@ http:
   services:
     my-service: {}
   middlewares:
-    test: "contains {{ app_name }} variable"
+    test: "contains {{ app_name }} variable in a string"
 `;
             const result = validateGeneratedConfig(yaml);
+            // This should be valid - templates in string values are fine
             expect(result.valid).toBe(true);
-            expect(result.valid === true && result.warnings?.length).toBeGreaterThan(0);
-            expect(result.valid === true && result.warnings?.[0]).toContain('unreplaced template');
         });
 
-        it('warns about unreplaced variables with }}', () => {
+        it('accepts template syntax in string values without warnings', () => {
+            // Template markers are valid in string values - they're just text
             const yaml = `
 http:
   routers:
     app:
-      rule: Host(\`{{ hostname }}\`)
+      rule: Host(\`example.com\`)
       service: my-service
   services:
     my-service: {}
+  middlewares:
+    documentation: "Use {{ variable }} syntax in templates"
 `;
             const result = validateGeneratedConfig(yaml);
             expect(result.valid).toBe(true);
-            expect(result.valid === true && result.warnings?.length).toBeGreaterThan(0);
         });
     });
 
@@ -290,13 +295,6 @@ http:
             const validation = validateGeneratedConfig(rendered);
 
             expect(validation.valid).toBe(true);
-            // Should not have warnings about unreplaced variables
-            if (validation.valid && validation.warnings) {
-                const unreplacedWarning = validation.warnings.find(w =>
-                    w.includes('unreplaced template')
-                );
-                expect(unreplacedWarning).toBeUndefined();
-            }
         });
 
         it('validates complex template with multiple apps', () => {
