@@ -228,5 +228,3 @@ Run tests with:
 ```bash
 npm test test/unit/api/api-security.test.ts
 ```
-
-All 145 tests (121 original + 24 API tests) passing ✅

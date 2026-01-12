@@ -1,3 +1,22 @@
+/**
+ * API Message Broker — Security layer for API field exposure
+ *
+ * This module provides a controlled, secure way to expose selected runtime
+ * fields via the public API (for example: GET /api/:fieldName and
+ * GET /api/routes).
+ *
+ * Key responsibilities:
+ * - Allow only explicitly set, named fields to be exposed (no implicit data leaks)
+ * - Validate field names (alphanumeric, underscore, dash; 1-64 chars)
+ * - Sanitize field values to be JSON-serializable and safe to publish
+ * - Emit 'field:update' when fields change so the API can reflect updates
+ *
+ * Use the exported singleton `apiMessageBroker` to publish or query fields.
+ *
+ * Security note: Consumers must call `setField()` only with explicit, vetted
+ * data. This broker rejects non-serializable values (functions, symbols,
+ * undefined, circular references) and logs violations for auditing.
+ */
 import { EventEmitter } from 'events';
 import { zone } from './logging/zone';
 
@@ -7,12 +26,21 @@ interface FieldData {
     [key: string]: unknown;
 }
 
+
 class APIMessageBroker extends EventEmitter {
     private fields: Map<string, FieldData> = new Map();
 
     /**
-     * Set a field that will be exposed via the API
-     * Emits a 'field:update' event with the field name and data
+     * Publish a named field for exposure via the API.
+     *
+     * Security/behavior:
+     * - Validates the name with `_isValidFieldName()` to prevent path traversal or
+     *   route collisions.
+     * - Sanitizes the data with `_isSanitized()` to ensure it's JSON-serializable
+     *   and safe to publish.
+     * - On failure, logs at warn/error level and refuses to set the field.
+     *
+     * Emits: 'field:update' with { name, data } when the field is successfully set.
      */
     setField(name: string, data: FieldData): void {
         if (!this._isValidFieldName(name)) {
@@ -66,8 +94,14 @@ class APIMessageBroker extends EventEmitter {
     }
 
     /**
-     * Basic sanitization to prevent injection
-     * Ensures all values are primitives or safe objects
+     * Ensure field data is safe for public exposure.
+     *
+     * Rules:
+     * - Allowed value types: string, number, boolean, null, object, array
+     * - Reject functions, symbols, undefined, and other non-serializable types
+     * - For objects/arrays, attempt JSON.stringify() to catch circular refs and
+     *   non-serializable values
+     * - Returns true when data is safe to publish; false otherwise
      */
     private _isSanitized(data: FieldData): boolean {
         try {
