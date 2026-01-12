@@ -16,7 +16,7 @@ const ALLOWED_UDP_KEYS = new Set(['services']);
 const INVALID_NAME_PATTERN = /\s|\n/;
 
 export type ValidationResult =
-    | { valid: true; warnings?: string[] }
+    | { valid: true }
     | { valid: false; error: string };
 
 /**
@@ -51,11 +51,10 @@ function validateSectionKeys(
 
 /**
  * Validate generated Traefik configuration YAML.
- * Returns validation result with optional warnings.
+ * Returns validation result. Since renderTemplate now throws on unknown variables,
+ * no unreplaced template variables should ever reach this validator.
  */
 export function validateGeneratedConfig(yamlText: string): ValidationResult {
-    const warnings: string[] = [];
-
     // Parse YAML
     let parsed: unknown;
     try {
@@ -116,10 +115,5 @@ export function validateGeneratedConfig(yamlText: string): ValidationResult {
         if (nameError) return { valid: false, error: nameError };
     }
 
-    // Check for unreplaced template variables
-    if (yamlText.includes('{{') || yamlText.includes('}}')) {
-        warnings.push('Config contains unreplaced template variables (may indicate missing data)');
-    }
-
-    return { valid: true, warnings: warnings.length > 0 ? warnings : undefined };
+    return { valid: true };
 }

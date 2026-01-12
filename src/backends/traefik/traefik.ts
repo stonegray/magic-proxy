@@ -41,7 +41,7 @@ async function loadTemplate(templatePath: string): Promise<string> {
 
 /**
  * Creates a Traefik config fragment by rendering the appropriate template.
- * Returns null if template rendering fails.
+ * Returns null if template rendering fails (template not found or render error).
  */
 function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYamlFormat | null {
     lastUserData = data.userData ? JSON.stringify(data.userData) : null;
@@ -50,7 +50,7 @@ function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYam
     if (!templateContent) {
         const available = Array.from(templates.keys()).join(', ') || '(none)';
         log.error({ message: 'Template not found', data: { appName, template: data.template, available } });
-        throw new Error(`Template '${data.template}' not found for app '${appName}'. Available: ${available}`);
+        return null;
     }
 
     log.debug({
