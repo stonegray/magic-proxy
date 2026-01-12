@@ -48,6 +48,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+        # TODO: duplicate build step; consider removing from here and only keeping in build-and-push
+        # once we figure a better way to prevent build errors from reaching build-and-push job.
+      - name: Build
+        run: npm run build
+
       - name: Test
         run: npm run test
 
