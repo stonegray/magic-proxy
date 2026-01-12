@@ -5,6 +5,7 @@ import { HostDB } from './hostDb';
 import { DockerProvider } from './providers/docker';
 import { MagicProxyConfigFile } from './types/config';
 import { zone } from './logging/zone';
+import { startWatchingConfigFile, resetRestartFlag } from './configWatcher';
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
 
@@ -17,6 +18,7 @@ log.info({
 const app = createApp();
 
 let dockerProvider: DockerProvider | null = null;
+let configWatcherInitialized = false;
 
 export async function startApp(config?: MagicProxyConfigFile) {
     try {
@@ -41,10 +43,37 @@ export async function startApp(config?: MagicProxyConfigFile) {
         });
 
         console.log('Initialization complete.');
+
+        // Set up config file watcher on first start
+        if (!configWatcherInitialized) {
+            configWatcherInitialized = true;
+            startWatchingConfigFile(handleConfigChange);
+        } else {
+            // If restarting, just reset the restart flag
+            resetRestartFlag();
+        }
     } catch (err) {
         console.error('Initialization error:', err instanceof Error ? err.message : String(err));
         process.exit(1);
     }
+}
+
+/**
+ * Handler called when config file changes
+ */
+async function handleConfigChange(newConfig: MagicProxyConfigFile): Promise<void> {
+    log.info({
+        message: 'Config file changed - restarting application'
+    });
+    
+    // Clean up current app
+    if (dockerProvider) {
+        dockerProvider.stop();
+        dockerProvider = null;
+    }
+    
+    // Restart with new config
+    await startApp(newConfig);
 }
 
 // Graceful shutdown handler
