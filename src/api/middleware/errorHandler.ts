@@ -24,7 +24,7 @@ interface ErrorResponse {
  * Catches all errors and returns safe responses without stack traces
  */
 export function errorHandler(
-    err: any,
+    err: Error | unknown,
     _req: Request,
     res: Response,
     _next: NextFunction

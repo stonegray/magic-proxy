@@ -13,7 +13,7 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
 
     // Override res.end to capture response
     const originalEnd = res.end;
-    res.end = function (chunk?: any, encoding?: any): Response {
+    res.end = function (chunk?: Buffer | string, encoding?: string): Response {
         const duration = Date.now() - startTime;
 
         log.debug({

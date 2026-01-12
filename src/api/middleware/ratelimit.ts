@@ -1,8 +1,5 @@
 import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
 import { cpus } from 'os';
-import { zone } from '../../logging/zone';
-
-const log = zone('api.ratelimit');
 
 // CPU monitoring state
 let currentMaxRps = 10; // base rate: 10 requests per second
