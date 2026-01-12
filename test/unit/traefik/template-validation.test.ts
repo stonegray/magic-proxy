@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { validateGeneratedConfig } from '../../../src/backends/traefik/validators';
 import { renderTemplate } from '../../../src/backends/traefik/templateParser';
 import { XMagicProxyData } from '../../../src/types/xmagic';
