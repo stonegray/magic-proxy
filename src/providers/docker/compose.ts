@@ -17,7 +17,7 @@ const runningInDocker = isDocker();
  * When running inside Docker with host filesystem mounted at /host,
  * prepends /host to absolute paths.
  */
-function resolveHostPath(hostPath: string): string {
+export function resolveHostPath(hostPath: string): string {
     if (runningInDocker && hostPath.startsWith('/')) {
         return `/host${hostPath}`;
     }

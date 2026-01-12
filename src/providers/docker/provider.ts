@@ -3,7 +3,7 @@ import fs from 'fs';
 import { HostDB } from '../../hostDb';
 import { zone } from '../../logging/zone';
 import { DockerProviderConfig } from './types';
-import { groupContainersByComposeFile } from './compose';
+import { groupContainersByComposeFile, resolveHostPath } from './compose';
 import { buildContainerManifest } from './manifest';
 
 const log = zone('providers.docker');
@@ -164,7 +164,8 @@ export class DockerProvider {
             existing.close();
         }
 
-        const watcher = fs.watch(path, (eventType, filename) => {
+        const resolvedPath = resolveHostPath(path);
+        const watcher = fs.watch(resolvedPath, (eventType, filename) => {
             if (!this.isActive) return;
 
             log.debug({
@@ -179,7 +180,7 @@ export class DockerProvider {
             if (eventType === 'rename') {
                 log.debug({ message: 'Re-attaching file watcher after rename', data: { path } });
                 setTimeout(() => {
-                    if (this.isActive && fs.existsSync(path)) {
+                    if (this.isActive && fs.existsSync(resolveHostPath(path))) {
                         this.createFileWatcher(path);
                     }
                 }, 100);
@@ -219,7 +220,8 @@ export class DockerProvider {
             for (const path of activePaths) {
                 if (this.fileWatchers.has(path)) continue;
 
-                if (!fs.existsSync(path)) {
+                const resolvedPath = resolveHostPath(path);
+                if (!fs.existsSync(resolvedPath)) {
                     log.warn({ message: 'Compose file does not exist', data: { path } });
                     continue;
                 }
