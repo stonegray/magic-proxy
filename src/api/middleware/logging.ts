@@ -11,6 +11,7 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
     const startTime = Date.now();
     const clientIp = getClientIP(req);
 
+<<<<<<< HEAD
     // Override res.end to capture response timings and metadata.
     // Express Response.end has multiple overloaded signatures:
     //   end(): Response
@@ -23,6 +24,11 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
     const originalEnd = res.end.bind(res);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     res.end = function (...args: any[]): Response {
+=======
+    // Override res.end to capture response
+    const originalEnd = res.end;
+    res.end = function (chunk?: Buffer | string, encoding?: string): Response {
+>>>>>>> main
         const duration = Date.now() - startTime;
 
         log.debug({
@@ -36,8 +42,13 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
             }
         });
 
+<<<<<<< HEAD
         return originalEnd(...args);
     } as typeof res.end;
+=======
+        return originalEnd.call(this, chunk, encoding);
+    };
+>>>>>>> main
 
     next();
 }
