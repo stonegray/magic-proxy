@@ -11,7 +11,8 @@ vi.mock('../../../src/providers/docker/compose', async () => {
     const actual = await vi.importActual('../../../src/providers/docker/compose');
     return {
         ...actual,
-        groupContainersByComposeFile: vi.fn()
+        groupContainersByComposeFile: vi.fn(),
+        resolveHostPath: vi.fn((path) => path)
     };
 });
 vi.mock('../../../src/providers/docker/manifest', async () => {
