@@ -26,12 +26,48 @@ let onConfigChangeCallback: OnConfigChangeCallback | null = null;
  */
 export function startWatchingConfigFile(callback: OnConfigChangeCallback): void {
     onConfigChangeCallback = callback;
+    attachConfigWatcher();
+}
+
+/**
+ * Attach or re-attach the watcher to the config file.
+ * Called on initial start and after atomic writes (rename events).
+ */
+function attachConfigWatcher(): void {
     const configPath = getDefaultConfigFile();
     
     watcher = fs.watch(configPath, async (eventType) => {
         if (isRestarting) return;
         
-        // Ignore 'rename' events from atomic writes and debounce
+        log.debug({
+            message: 'Config file watcher event',
+            data: { eventType, configPath }
+        });
+
+        // On rename events (atomic writes), re-attach the watcher
+        // because the original inode may have been replaced
+        if (eventType === 'rename') {
+            log.debug({
+                message: 'Detected atomic write (rename) - re-attaching watcher',
+                data: { configPath }
+            });
+
+            // Close the old watcher
+            if (watcher) {
+                watcher.close();
+            }
+
+            // Re-attach after a small delay to ensure file is fully written
+            setTimeout(() => {
+                if (watcher === null) {
+                    attachConfigWatcher();
+                }
+            }, 100);
+
+            return;
+        }
+
+        // Process 'change' events
         if (eventType === 'change') {
             isRestarting = true;
             
@@ -69,7 +105,7 @@ export function startWatchingConfigFile(callback: OnConfigChangeCallback): void 
     });
 
     log.debug({
-        message: 'Started watching config file for changes',
+        message: 'Watching config file for changes',
         data: { path: configPath }
     });
 }

@@ -15,8 +15,11 @@
   "author": "",
   "license": "GPL-3.0-or-later",
   "dependencies": {
+    "@types/helmet": "^0.0.48",
     "dockerode": "^4.0.9",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
     "is-docker": "^4.0.0",
     "js-yaml": "^4.1.1",
     "nunjucks": "^3.2.4",

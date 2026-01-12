@@ -1,4 +1,3 @@
-import { createApp } from './api';
 import { loadConfigFile } from './config';
 import { initialize as initializeBackend } from './backends/backendPlugin';
 import { HostDB } from './hostDb';
@@ -7,18 +6,15 @@ import { MagicProxyConfigFile } from './types/config';
 import { zone } from './logging/zone';
 import { startWatchingConfigFile, resetRestartFlag } from './configWatcher';
 
-const port = process.env.PORT ? Number(process.env.PORT) : 3000;
-
 const log = zone('index');
 
 log.info({
     message: 'Starting Magic Proxy application',
 });
 
-const app = createApp();
-
 let dockerProvider: DockerProvider | null = null;
 let configWatcherInitialized = false;
+let stopAPI: (() => void) | null = null;
 
 export async function startApp(config?: MagicProxyConfigFile) {
     try {
@@ -41,6 +37,19 @@ export async function startApp(config?: MagicProxyConfigFile) {
         log.info({
             message: 'Docker provider started - monitoring for container changes'
         });
+
+        // Handle API based on config
+        if (cfg.api?.enabled === true) {
+            const apiModule = await import('./api');
+            stopAPI = apiModule.stopAPI;
+            await apiModule.startAPI(cfg.api);
+        } else {
+            // API is disabled in config, stop if running
+            if (stopAPI) {
+                stopAPI();
+                stopAPI = null;
+            }
+        }
 
         console.log('Initialization complete.');
 
@@ -88,9 +97,5 @@ const shutdown = () => {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-// Immediately start the app when importing the module in normal runs
+// Immediately start the app when this module is imported
 startApp();
-
-app.listen(port, () => {
-    console.log(`Docker management API listening on port ${port}`);
-});

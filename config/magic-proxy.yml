@@ -18,5 +18,22 @@ traefik:
 api:
   # Enable or disable the Magic Proxy API; required for docker health, external logging. 
   enabled: true
+
   # Port for the Magic Proxy API
-  port: 8080
+  # API always binds to 0.0.0.0 for Docker compatibility
+  port: 12352
+
+  # Optional API key for authentication
+  # If set, all API requests must include this key via:
+  # - X-API-Key header, or
+  # - ?key=<value> query parameter
+  # RECOMMENDED: Set this when exposing the API
+  # key: your-secret-key-here
+
+  # Request timeout in milliseconds (default: 1000ms)
+  # Requests taking longer than this will be aborted
+  timeout: 1000
+
+  # Allow clients to list all available API routes at GET /api/routes
+  # Disable in production to avoid information disclosure about available endpoints
+  allowListingRoutes: false
