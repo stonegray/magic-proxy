@@ -31,7 +31,12 @@ export function errorHandler(
 ): void {
     const errorId = generateErrorId();
 
-    // Extract error properties with safe type handling
+    // Extract error properties with safe type handling.
+    // We accept Error | unknown and need to safely access properties that may exist
+    // on Error objects (message), HTTP error objects (statusCode, status), or custom
+    // error objects (code). Type casting to any is necessary to access these
+    // arbitrary properties while maintaining runtime safety through optional chaining.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const errorObj = err as any; // Allow accessing arbitrary properties
     const errorMessage = errorObj?.message ?? String(err);
     const errorType = errorObj?.constructor?.name ?? 'Unknown';
