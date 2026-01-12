@@ -91,7 +91,7 @@ export async function startAPI(apiConfig: APIConfig): Promise<void> {
     try {
         await new Promise<void>((resolve, reject) => {
             server = app.listen(apiConfig.port, '0.0.0.0', () => {
-                log.info({
+                log.debug({
                     message: 'Magic Proxy API started',
                     data: { port: apiConfig.port }
                 });
@@ -115,6 +115,6 @@ export function stopAPI(): void {
     if (server) {
         server.close();
         server = null;
-        log.info({ message: 'API server stopped' });
+        log.debug({ message: 'API server stopped' });
     }
 }

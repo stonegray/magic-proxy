@@ -112,7 +112,7 @@ export async function initialize(config?: MagicProxyConfigFile): Promise<void> {
         throw new Error('No templates defined in config.traefik.templates');
     }
 
-    log.info({ message: 'Initializing Traefik backend', data: { templateCount: templatePaths.length } });
+    log.debug({ message: 'Initializing Traefik backend', data: { templateCount: templatePaths.length } });
     
     // Load all templates concurrently
     const loadResults = await Promise.all(
@@ -139,7 +139,7 @@ export async function initialize(config?: MagicProxyConfigFile): Promise<void> {
             ? outputFile
             : path.resolve(OUTPUT_DIRECTORY, outputFile);
         manager.setOutputFile(resolved);
-        log.info({ message: 'Output file configured', data: { outputFile: resolved } });
+        log.debug({ message: 'Output file configured', data: { outputFile: resolved } });
     }
 
     await manager.flushToDisk();
