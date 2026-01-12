@@ -7,8 +7,8 @@ const log = zone('backends.traefik.template');
 /** Pattern for template variables: {{ variable_name }} or {{ object.property }} */
 const VARIABLE_PATTERN = /{{\s*([a-zA-Z0-9_.]+)\s*}}/g;
 
-/** Pattern for valid variable names (alphanumeric, underscores, and dots for nested access) */
-const VALID_KEY_PATTERN = /^[a-zA-Z0-9_.]+$/;
+/** Pattern for valid userData key names (alphanumeric and underscores only, no dots) */
+const VALID_KEY_PATTERN = /^[a-zA-Z0-9_]+$/;
 
 /**
  * Build the context object from app name and proxy data.

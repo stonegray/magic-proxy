@@ -214,6 +214,48 @@ config:
             expect(result).toContain('val2');
             expect(result).toContain('3000');
         });
+
+        it('rejects userData keys with dots to prevent ambiguity', () => {
+            const template = `
+config:
+  value: {{ foo }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: {
+                    'foo.bar': 'should-be-ignored',
+                    'foo': 'correct-value',
+                },
+            };
+
+            // The userData key with a dot in it ('foo.bar') should not be added to context
+            // because dots are reserved for template variable syntax (nested access)
+            const result = renderTemplate(template, 'app', data);
+            expect(result).toContain('correct-value');
+            expect(result).not.toContain('should-be-ignored');
+        });
+
+        it('supports nested userData access with dots in template syntax', () => {
+            const template = `
+config:
+  value: {{ userData.my_value }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: {
+                    my_value: 'nested-access-works',
+                },
+            };
+
+            // Even though userData keys can't have dots, template syntax supports nested access
+            // so {{ userData.my_value }} should work
+            const result = renderTemplate(template, 'app', data);
+            expect(result).toContain('nested-access-works');
+        });
     });
 
     describe('Complex template scenarios with userData', () => {
