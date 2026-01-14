@@ -1,5 +1,5 @@
 import yaml from 'js-yaml';
-import { getErrorMessage } from './templateParser';
+import { getErrorMessage } from './helpers';
 
 /** Allowed top-level keys in Traefik dynamic config */
 const ALLOWED_TOP_KEYS = new Set(['http', 'tcp', 'udp']);

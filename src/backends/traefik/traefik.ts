@@ -1,7 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { OUTPUT_DIRECTORY, CONFIG_DIRECTORY } from '../../config';
-import { renderTemplateParsed, getErrorMessage } from './templateParser';
+import { renderTemplateParsed } from './templateParser';
+import { getErrorMessage } from './helpers';
 import { TraefikConfigYamlFormat } from './types/traefik';
 import * as manager from './traefikManager';
 import { MagicProxyConfigFile } from '../../types/config';
