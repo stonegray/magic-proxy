@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { OUTPUT_DIRECTORY, CONFIG_DIRECTORY } from '../../config';
-import { renderTemplate, renderTemplateParsed } from './templateParser';
+import { renderTemplateParsed, getErrorMessage } from './templateParser';
 import { TraefikConfigYamlFormat } from './types/traefik';
 import * as manager from './traefikManager';
 import { MagicProxyConfigFile } from '../../types/config';
@@ -13,9 +13,6 @@ const log = zone('backends.traefik');
 
 /** Template storage: maps template filename -> content */
 const templates = new Map<string, string>();
-
-/** Tracking for debugging */
-let lastRendered: string | null = null;
 
 /**
  * Load a template file from disk.
@@ -31,7 +28,7 @@ async function loadTemplate(templatePath: string): Promise<string> {
     try {
         return await fs.readFile(resolved, 'utf-8');
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = getErrorMessage(err);
         log.error({ message: 'Failed to load template', data: { templatePath, resolved, error: message } });
         throw new Error(`Failed to load template '${templatePath}': ${message}`);
     }
@@ -49,20 +46,13 @@ function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYam
         return null;
     }
 
-    log.debug({
-        message: 'Rendering template',
-        data: { appName, template: data.template, target: data.target, hostname: data.hostname }
-    });
-
     try {
-        const rendered = renderTemplate(templateContent, appName, data);
-        lastRendered = rendered;
-        return renderTemplateParsed<TraefikConfigYamlFormat>(templateContent, appName, data);
+        const { parsed } = renderTemplateParsed<TraefikConfigYamlFormat>(templateContent, appName, data);
+        return parsed;
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
         log.error({
             message: 'Failed to render template',
-            data: { appName, error: message }
+            data: { appName, error: getErrorMessage(err) }
         });
         return null;
     }
@@ -72,10 +62,6 @@ function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYam
 // Test utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function _getLastRendered(): string | null {
-    return lastRendered;
-}
-
 export function _setTemplateForTesting(name: string, content: string): void {
     templates.set(name, content);
 }
@@ -83,7 +69,6 @@ export function _setTemplateForTesting(name: string, content: string): void {
 export function _resetForTesting(): void {
     manager._resetForTesting?.();
     templates.clear();
-    lastRendered = null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

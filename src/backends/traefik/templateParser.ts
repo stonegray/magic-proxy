@@ -105,22 +105,37 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
     return rendered;
 }
 
+/** Result from rendering a template with both raw string and parsed object */
+export type RenderResult<T> = {
+    raw: string;
+    parsed: T;
+};
+
+/**
+ * Extract error message from unknown error type.
+ */
+export function getErrorMessage(err: unknown): string {
+    return err instanceof Error ? err.message : String(err);
+}
+
 /**
  * Render a template and parse it as YAML.
+ * Returns both the raw rendered string and the parsed object.
  * 
  * @param template - The template content with {{ variable }} placeholders
  * @param appName - The application name
  * @param data - The proxy configuration data
- * @returns The parsed YAML object
+ * @returns Object containing both raw string and parsed YAML
  * @throws Error if unknown template variables are encountered or YAML is invalid
  */
-export function renderTemplateParsed<T = unknown>(template: string, appName: string, data: XMagicProxyData): T {
-    const rendered = renderTemplate(template, appName, data);
+export function renderTemplateParsed<T = unknown>(template: string, appName: string, data: XMagicProxyData): RenderResult<T> {
+    const raw = renderTemplate(template, appName, data);
     
     try {
-        return yaml.load(rendered) as T;
+        const parsed = yaml.load(raw) as T;
+        return { raw, parsed };
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = getErrorMessage(err);
         log.error({
             message: 'Template produced invalid YAML',
             data: { appName, error: message }
