@@ -11,6 +11,9 @@ const log = zone('backends.traefik.manager');
 const registry = new Map<string, TraefikConfigYamlFormat>();
 let outputFile: string | null = null;
 
+/** Track whether temp file cleanup has been performed for current output file */
+let tempFilesCleanedUp = false;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Flush Debouncing
 // ─────────────────────────────────────────────────────────────────────────────
@@ -116,8 +119,11 @@ async function writeAtomically(filePath: string, content: string): Promise<void>
 
     try {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
-        // Clean up any stale temp files before writing
-        await cleanupTempFiles(filePath);
+        // Clean up any stale temp files on first write only
+        if (!tempFilesCleanedUp) {
+            await cleanupTempFiles(filePath);
+            tempFilesCleanedUp = true;
+        }
         await fs.writeFile(tmpFile, content, 'utf-8');
         await fs.rename(tmpFile, filePath);
         log.debug({ message: 'Config written', data: { filePath } });
@@ -133,6 +139,9 @@ async function writeAtomically(filePath: string, content: string): Promise<void>
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function setOutputFile(file: string | null): void {
+    if (file !== outputFile) {
+        tempFilesCleanedUp = false; // Reset cleanup flag for new file
+    }
     outputFile = file;
 }
 
@@ -267,4 +276,5 @@ export function _resetForTesting(): void {
     registry.clear();
     outputFile = null;
     pendingFlush = null;
+    tempFilesCleanedUp = false;
 }
