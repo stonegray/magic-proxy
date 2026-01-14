@@ -1,8 +1,9 @@
-import Docker from 'dockerode';
 import { XMagicProxyData } from './xmagic';
 
-// Definition of Docker Compose file structure, with support for
-// our custom x-magic-proxy object under services.<service>.x-magic-proxy
+/**
+ * Docker Compose file structure with support for custom x-magic-proxy extension.
+ * @see https://docs.docker.com/compose/compose-file/
+ */
 export type ComposeFileData = {
     version?: string | number;
 
@@ -58,14 +59,3 @@ export type ComposeFileData = {
 
     secrets?: Record<string, { file?: string; external?: boolean }>;
 };
-
-
-
-export interface ComposeFileReference {
-    path: string | null;
-    error?: string;
-    composeFile?: string | null;
-    // composeData contains x-magic-proxy info if successfully loaded
-    composeData?: ComposeFileData;
-    containers: Docker.ContainerInfo[];
-}

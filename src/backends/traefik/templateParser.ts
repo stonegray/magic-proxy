@@ -1,6 +1,7 @@
 import yaml from 'js-yaml';
 import { XMagicProxyData } from '../../types/xmagic';
 import { zone } from '../../logging/zone';
+import { getErrorMessage } from './helpers';
 
 const log = zone('backends.traefik.template');
 
@@ -118,12 +119,6 @@ export type RenderResult<T> = {
     raw: string;
     parsed: T;
 };
-
-/**
- * Extract error message from unknown error type.
- */
-import { getErrorMessage } from './helpers';
-export { getErrorMessage };
 
 /**
  * Render a template and parse it as YAML.

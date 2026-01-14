@@ -1,16 +1,13 @@
 import isDocker from "is-docker";
 
-
-// set config direcotry to CONFIG_DIRECOTRY env or default to ./config:
-
+// Configuration directories - use environment variables or sensible defaults
 export const CONFIG_DIRECTORY = process.env.CONFIG_DIRECTORY || (isDocker() ? '/var/config/' : './config/');
-
-// set output directory to CONFIG_DIRECOTRY env or default to ./generated:
-
 export const OUTPUT_DIRECTORY = process.env.OUTPUT_DIRECTORY || (isDocker() ? '/var/generated/' : './generated/');
 
-// Lazy evaluation of DEFAULT_CONFIG_FILE to support FS mocking in tests
-// (tests set up mocks before loading config module)
+/**
+ * Get the default config file path.
+ * Uses lazy evaluation to support FS mocking in tests.
+ */
 let _defaultConfigFile: string | null = null;
 export function getDefaultConfigFile(): string {
     if (_defaultConfigFile === null) {
@@ -19,8 +16,7 @@ export function getDefaultConfigFile(): string {
     return _defaultConfigFile;
 }
 
-// Export DEFAULT_CONFIG_FILE for backwards compatibility - it will be computed on first access
-// This is important for FS mocking in tests
+// For backwards compatibility - computed on first access
 export const DEFAULT_CONFIG_FILE = getDefaultConfigFile();
 
 // Read the config file and load the YAML:
