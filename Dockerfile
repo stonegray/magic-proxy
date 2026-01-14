@@ -1,5 +1,5 @@
 # ---------- Build stage ----------
-FROM node:22-slim AS build
+FROM node:25-slim AS build
 WORKDIR /app
 
 # Install dependencies (lockfile enforced)
@@ -14,7 +14,7 @@ RUN npm run build
 
 
 # ---------- Runtime stage ----------
-FROM node:22-slim
+FROM node:25-slim
 WORKDIR /app
 
 # Copy package metadata + lockfile
