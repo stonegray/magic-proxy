@@ -201,14 +201,25 @@ async function doFlushToDisk(): Promise<void> {
 
 /**
  * Register or update an app's configuration.
+ * Performs deep merge of routers, services, and middlewares.
  */
 export function register(appName: string, config: Partial<TraefikConfigYamlFormat>): void {
     const existing = registry.get(appName) ?? {};
 
+    // Deep merge each section to preserve existing routers/services/middlewares
     const merged: TraefikConfigYamlFormat = {
-        http: { ...existing.http, ...config.http },
-        tcp: { ...existing.tcp, ...config.tcp },
-        udp: { ...existing.udp, ...config.udp },
+        http: (existing.http || config.http) ? {
+            routers: { ...existing.http?.routers, ...config.http?.routers },
+            services: { ...existing.http?.services, ...config.http?.services },
+            middlewares: { ...existing.http?.middlewares, ...config.http?.middlewares },
+        } : undefined,
+        tcp: (existing.tcp || config.tcp) ? {
+            routers: { ...existing.tcp?.routers, ...config.tcp?.routers },
+            services: { ...existing.tcp?.services, ...config.tcp?.services },
+        } : undefined,
+        udp: (existing.udp || config.udp) ? {
+            services: { ...existing.udp?.services, ...config.udp?.services },
+        } : undefined,
     };
 
     registry.set(appName, merged);
