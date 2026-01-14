@@ -45,17 +45,31 @@ export async function initialize(config?: MagicProxyConfigFile): Promise<void> {
     await activeBackend.initialize(cfg);
 }
 
+/**
+ * Ensures backend is initialized and returns it.
+ * Throws if initialization fails.
+ */
+async function ensureBackend(): Promise<BackendModule> {
+    if (!activeBackend) {
+        await initialize();
+    }
+    if (!activeBackend) {
+        throw new Error('Backend initialization failed - no active backend');
+    }
+    return activeBackend;
+}
+
 export async function addProxiedApp(entry: HostEntry): Promise<void> {
-    if (!activeBackend) await initialize();
-    return activeBackend!.addProxiedApp(entry);
+    const backend = await ensureBackend();
+    return backend.addProxiedApp(entry);
 }
 
 export async function removeProxiedApp(appName: string): Promise<void> {
-    if (!activeBackend) await initialize();
-    return activeBackend!.removeProxiedApp(appName);
+    const backend = await ensureBackend();
+    return backend.removeProxiedApp(appName);
 }
 
 export async function getStatus(): Promise<BackendStatus> {
-    if (!activeBackend) await initialize();
-    return activeBackend!.getStatus();
+    const backend = await ensureBackend();
+    return backend.getStatus();
 }
