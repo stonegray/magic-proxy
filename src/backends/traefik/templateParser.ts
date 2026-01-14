@@ -17,10 +17,10 @@ const VALID_KEY_PATTERN = /^[a-zA-Z0-9_]+$/;
  * - Flat keys: {{ port }} (for backward compatibility)
  * - Nested access: {{ userData.port }} (explicit namespace)
  */
-function buildContext(appName: string, data: XMagicProxyData): Record<string, any> {
+function buildContext(appName: string, data: XMagicProxyData): Record<string, string | Record<string, string>> {
     const CORE_KEYS = new Set(['app_name', 'hostname', 'target_url', 'userData']);
     
-    const context: Record<string, any> = {
+    const context: Record<string, string | Record<string, string>> = {
         app_name: appName,
         hostname: data.hostname,
         target_url: data.target,
@@ -71,7 +71,7 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
      */
     function getContextValue(path: string): string | undefined {
         const parts = path.split('.');
-        let value: any = context;
+        let value: string | Record<string, string> | undefined = context;
         
         for (const part of parts) {
             if (value == null || typeof value !== 'object') {
