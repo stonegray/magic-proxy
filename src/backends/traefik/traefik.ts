@@ -1,8 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import yaml from 'js-yaml';
 import { OUTPUT_DIRECTORY, CONFIG_DIRECTORY } from '../../config';
-import { renderTemplate } from './templateParser';
+import { renderTemplate, renderTemplateParsed } from './templateParser';
 import { TraefikConfigYamlFormat } from './types/traefik';
 import * as manager from './traefikManager';
 import { MagicProxyConfigFile } from '../../types/config';
@@ -61,7 +60,7 @@ function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYam
     try {
         const rendered = renderTemplate(templateContent, appName, data);
         lastRendered = rendered;
-        return yaml.load(rendered) as TraefikConfigYamlFormat;
+        return renderTemplateParsed<TraefikConfigYamlFormat>(templateContent, appName, data);
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         log.error({

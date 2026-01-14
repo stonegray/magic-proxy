@@ -51,7 +51,7 @@ function buildContext(appName: string, data: XMagicProxyData): Record<string, an
  * @param template - The template content with {{ variable }} placeholders
  * @param appName - The application name
  * @param data - The proxy configuration data
- * @returns The rendered template as normalized YAML
+ * @returns The rendered template as a string (for testing) or use renderTemplateParsed for parsed object
  * @throws Error if unknown template variables are encountered
  */
 export function renderTemplate(template: string, appName: string, data: XMagicProxyData): string {
@@ -102,10 +102,23 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
         throw new Error(message);
     }
 
-    // Parse and re-dump for consistent YAML formatting
+    return rendered;
+}
+
+/**
+ * Render a template and parse it as YAML.
+ * 
+ * @param template - The template content with {{ variable }} placeholders
+ * @param appName - The application name
+ * @param data - The proxy configuration data
+ * @returns The parsed YAML object
+ * @throws Error if unknown template variables are encountered or YAML is invalid
+ */
+export function renderTemplateParsed<T = unknown>(template: string, appName: string, data: XMagicProxyData): T {
+    const rendered = renderTemplate(template, appName, data);
+    
     try {
-        const parsed = yaml.load(rendered);
-        return yaml.dump(parsed, { noRefs: true, skipInvalid: true });
+        return yaml.load(rendered) as T;
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         log.error({

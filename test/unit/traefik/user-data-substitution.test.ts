@@ -124,8 +124,8 @@ config:
             };
 
             const result = renderTemplate(template, 'app', data);
-            // null should be converted to empty string, YAML output will have single quotes
-            expect(result).toContain("optional_setting: ''");
+            // null should be converted to empty string in the raw template output
+            expect(result).toContain('optional_setting: ""');
         });
 
         it('core variables cannot be overwritten by userData', () => {
