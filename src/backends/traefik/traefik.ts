@@ -16,7 +16,6 @@ const templates = new Map<string, string>();
 
 /** Tracking for debugging */
 let lastRendered: string | null = null;
-let lastUserData: string | null = null;
 
 /**
  * Load a template file from disk.
@@ -43,8 +42,6 @@ async function loadTemplate(templatePath: string): Promise<string> {
  * Returns null if template rendering fails (template not found or render error).
  */
 function makeAppConfig(appName: string, data: XMagicProxyData): TraefikConfigYamlFormat | null {
-    lastUserData = data.userData ? JSON.stringify(data.userData) : null;
-
     const templateContent = templates.get(data.template);
     if (!templateContent) {
         const available = Array.from(templates.keys()).join(', ') || '(none)';
@@ -79,10 +76,6 @@ export function _getLastRendered(): string | null {
     return lastRendered;
 }
 
-export function _getLastUserData(): string | null {
-    return lastUserData;
-}
-
 export function _setTemplateForTesting(name: string, content: string): void {
     templates.set(name, content);
 }
@@ -91,7 +84,6 @@ export function _resetForTesting(): void {
     manager._resetForTesting?.();
     templates.clear();
     lastRendered = null;
-    lastUserData = null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
