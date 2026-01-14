@@ -3,26 +3,19 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { TraefikConfigYamlFormat } from './types/traefik';
 import { validateGeneratedConfig } from './validators';
+import { detectCollisions } from './helpers';
 import { zone } from '../../logging/zone';
 
 const log = zone('backends.traefik.manager');
 
-/** Registry of app configs keyed by app name */
+// Registry of app configs keyed by app name
 const registry = new Map<string, TraefikConfigYamlFormat>();
 let outputFile: string | null = null;
 
-/** Track whether temp file cleanup has been performed for current output file */
+// Track whether temp file cleanup has been performed for current output file
 let tempFilesCleanedUp = false;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Flush Debouncing
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Pending flush state for debouncing multiple rapid flushToDisk() calls.
- * This prevents race conditions where multiple writes with different registry
- * states could complete out of order.
- */
+// Pending flush state for debouncing multiple rapid flushToDisk() calls
 let pendingFlush: {
     resolvers: Array<{ resolve: () => void; reject: (err: Error) => void }>;
     scheduled: boolean;
@@ -36,8 +29,6 @@ let pendingFlush: {
  * Merge two records, with source values overwriting target values.
  * Logs a warning if any keys would be overwritten.
  */
-import { detectCollisions } from './helpers';
-
 function mergeRecord<T>(target: Record<string, T> = {}, source: Record<string, T> = {}, section?: string): Record<string, T> {
     if (section) {
         const collisions = detectCollisions(target, source);
