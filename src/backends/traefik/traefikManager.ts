@@ -36,9 +36,11 @@ let pendingFlush: {
  * Merge two records, with source values overwriting target values.
  * Logs a warning if any keys would be overwritten.
  */
+import { detectCollisions } from './helpers';
+
 function mergeRecord<T>(target: Record<string, T> = {}, source: Record<string, T> = {}, section?: string): Record<string, T> {
     if (section) {
-        const collisions = Object.keys(source).filter(key => key in target);
+        const collisions = detectCollisions(target, source);
         if (collisions.length > 0) {
             log.warn({
                 message: 'Config name collision detected - values will be overwritten',
