@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { zone } from '../../logging/zone';
+import { getClientIP } from './utils';
 
 const log = zone('api:auth');
 
@@ -47,15 +48,4 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
     // Key is valid, proceed
     next();
-}
-
-/**
- * Extract client IP from request
- */
-function getClientIP(req: Request): string {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-        return forwarded.split(',')[0].trim();
-    }
-    return req.socket.remoteAddress || 'unknown';
 }

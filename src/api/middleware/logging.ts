@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { zone } from '../../logging/zone';
+import { getClientIP } from './utils';
 
 const log = zone('api:request');
 
@@ -40,16 +41,4 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
     } as typeof res.end;
 
     next();
-}
-
-/**
- * Extract client IP from request
- * Handles X-Forwarded-For header if behind a proxy
- */
-function getClientIP(req: Request): string {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-        return forwarded.split(',')[0].trim();
-    }
-    return req.socket.remoteAddress || 'unknown';
 }

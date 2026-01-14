@@ -48,5 +48,3 @@ export function validateXMagicProxyData(data: unknown): XMagicProxyValidationRes
 
   return { valid: false, reason };
 }
-
-export { XMagicProxySchema as xMagicProxySchema };

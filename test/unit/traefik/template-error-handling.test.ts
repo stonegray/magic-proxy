@@ -1,5 +1,5 @@
 import { describe, it, beforeEach, expect } from 'vitest';
-import { renderTemplate } from '../../../src/backends/traefik/templateParser';
+import { renderTemplate, renderTemplateParsed } from '../../../src/backends/traefik/templateParser';
 import * as traefik from '../../../src/backends/traefik/traefik';
 import { XMagicProxyData } from '../../../src/types/xmagic';
 import { HostEntry } from '../../../src/types/host';
@@ -58,7 +58,7 @@ key: {{ app_name }}
                 hostname: 'h',
             };
 
-            expect(() => renderTemplate(tmpl, 'app', data)).toThrow(
+            expect(() => renderTemplateParsed(tmpl, 'app', data)).toThrow(
                 /Template produced invalid YAML/
             );
         });

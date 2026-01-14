@@ -3,3 +3,4 @@ export { apiLimiter } from './ratelimit';
 export { authMiddleware, setAPIKey } from './auth';
 export { errorHandler, notFoundHandler } from './errorHandler';
 export { validateQuery, validateBodySize } from './validation';
+export { getClientIP } from './utils';

@@ -1,16 +1,16 @@
+import fs from 'fs';
+import yaml from 'js-yaml';
 import isDocker from "is-docker";
+import { MagicProxyConfigFile } from './types/config';
 
-
-// set config direcotry to CONFIG_DIRECOTRY env or default to ./config:
-
+// Configuration directories - use environment variables or sensible defaults
 export const CONFIG_DIRECTORY = process.env.CONFIG_DIRECTORY || (isDocker() ? '/var/config/' : './config/');
-
-// set output directory to CONFIG_DIRECOTRY env or default to ./generated:
-
 export const OUTPUT_DIRECTORY = process.env.OUTPUT_DIRECTORY || (isDocker() ? '/var/generated/' : './generated/');
 
-// Lazy evaluation of DEFAULT_CONFIG_FILE to support FS mocking in tests
-// (tests set up mocks before loading config module)
+/**
+ * Get the default config file path.
+ * Uses lazy evaluation to support FS mocking in tests.
+ */
 let _defaultConfigFile: string | null = null;
 export function getDefaultConfigFile(): string {
     if (_defaultConfigFile === null) {
@@ -19,35 +19,34 @@ export function getDefaultConfigFile(): string {
     return _defaultConfigFile;
 }
 
-// Export DEFAULT_CONFIG_FILE for backwards compatibility - it will be computed on first access
-// This is important for FS mocking in tests
+// For backwards compatibility
 export const DEFAULT_CONFIG_FILE = getDefaultConfigFile();
 
-// Read the config file and load the YAML:
-import fs from 'fs';
-import yaml from 'js-yaml';
-import { MagicProxyConfigFile } from './types/config';
+/** Valid proxy backend names */
+const VALID_BACKENDS = ['traefik'] as const;
 
+/**
+ * Load and validate a configuration file.
+ */
 export async function loadConfigFile(path?: string): Promise<MagicProxyConfigFile> {
     const configPath = path || getDefaultConfigFile();
     try {
         const fileContent = await fs.promises.readFile(configPath, 'utf-8');
         const config = yaml.load(fileContent) as MagicProxyConfigFile;
-
-        // validateConfig throws if invalid:
         validateConfig(config);
-
         return config;
     } catch (error) {
         throw new Error(`Error loading config file at ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
-// config validator:
+/**
+ * Validate configuration object.
+ * Throws if invalid.
+ */
 export function validateConfig(config: MagicProxyConfigFile): boolean {
-    const validBackends = ['traefik'];
-    if (!config.proxyBackend || !validBackends.includes(config.proxyBackend)) {
-        throw new Error(`Invalid proxyBackend in config file. Must be one of: ${validBackends.join(', ')}`);
+    if (!config.proxyBackend || !VALID_BACKENDS.includes(config.proxyBackend)) {
+        throw new Error(`Invalid proxyBackend in config file. Must be one of: ${VALID_BACKENDS.join(', ')}`);
     }
     return true;
 }

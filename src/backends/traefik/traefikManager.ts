@@ -3,23 +3,19 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { TraefikConfigYamlFormat } from './types/traefik';
 import { validateGeneratedConfig } from './validators';
+import { detectCollisions } from './helpers';
 import { zone } from '../../logging/zone';
 
 const log = zone('backends.traefik.manager');
 
-/** Registry of app configs keyed by app name */
+// Registry of app configs keyed by app name
 const registry = new Map<string, TraefikConfigYamlFormat>();
 let outputFile: string | null = null;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Flush Debouncing
-// ─────────────────────────────────────────────────────────────────────────────
+// Track whether temp file cleanup has been performed for current output file
+let tempFilesCleanedUp = false;
 
-/**
- * Pending flush state for debouncing multiple rapid flushToDisk() calls.
- * This prevents race conditions where multiple writes with different registry
- * states could complete out of order.
- */
+// Pending flush state for debouncing multiple rapid flushToDisk() calls
 let pendingFlush: {
     resolvers: Array<{ resolve: () => void; reject: (err: Error) => void }>;
     scheduled: boolean;
@@ -31,8 +27,18 @@ let pendingFlush: {
 
 /**
  * Merge two records, with source values overwriting target values.
+ * Logs a warning if any keys would be overwritten.
  */
-function mergeRecord<T>(target: Record<string, T> = {}, source: Record<string, T> = {}): Record<string, T> {
+function mergeRecord<T>(target: Record<string, T> = {}, source: Record<string, T> = {}, section?: string): Record<string, T> {
+    if (section) {
+        const collisions = detectCollisions(target, source);
+        if (collisions.length > 0) {
+            log.warn({
+                message: 'Config name collision detected - values will be overwritten',
+                data: { section, collisions }
+            });
+        }
+    }
     return { ...target, ...source };
 }
 
@@ -46,22 +52,22 @@ function buildCombinedConfig(): TraefikConfigYamlFormat {
         // HTTP section
         if (cfg.http?.routers || cfg.http?.services || cfg.http?.middlewares) {
             combined.http ??= {};
-            combined.http.routers = mergeRecord(combined.http.routers, cfg.http.routers);
-            combined.http.services = mergeRecord(combined.http.services, cfg.http.services);
-            combined.http.middlewares = mergeRecord(combined.http.middlewares, cfg.http.middlewares);
+            combined.http.routers = mergeRecord(combined.http.routers, cfg.http.routers, 'http.routers');
+            combined.http.services = mergeRecord(combined.http.services, cfg.http.services, 'http.services');
+            combined.http.middlewares = mergeRecord(combined.http.middlewares, cfg.http.middlewares, 'http.middlewares');
         }
 
         // TCP section
         if (cfg.tcp?.routers || cfg.tcp?.services) {
             combined.tcp ??= {};
-            combined.tcp.routers = mergeRecord(combined.tcp.routers, cfg.tcp.routers);
-            combined.tcp.services = mergeRecord(combined.tcp.services, cfg.tcp.services);
+            combined.tcp.routers = mergeRecord(combined.tcp.routers, cfg.tcp.routers, 'tcp.routers');
+            combined.tcp.services = mergeRecord(combined.tcp.services, cfg.tcp.services, 'tcp.services');
         }
 
         // UDP section
         if (cfg.udp?.services) {
             combined.udp ??= {};
-            combined.udp.services = mergeRecord(combined.udp.services, cfg.udp.services);
+            combined.udp.services = mergeRecord(combined.udp.services, cfg.udp.services, 'udp.services');
         }
     }
 
@@ -106,8 +112,11 @@ async function writeAtomically(filePath: string, content: string): Promise<void>
 
     try {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
-        // Clean up any stale temp files before writing
-        await cleanupTempFiles(filePath);
+        // Clean up any stale temp files on first write only
+        if (!tempFilesCleanedUp) {
+            await cleanupTempFiles(filePath);
+            tempFilesCleanedUp = true;
+        }
         await fs.writeFile(tmpFile, content, 'utf-8');
         await fs.rename(tmpFile, filePath);
         log.debug({ message: 'Config written', data: { filePath } });
@@ -123,6 +132,9 @@ async function writeAtomically(filePath: string, content: string): Promise<void>
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function setOutputFile(file: string | null): void {
+    if (file !== outputFile) {
+        tempFilesCleanedUp = false; // Reset cleanup flag for new file
+    }
     outputFile = file;
 }
 
@@ -201,14 +213,25 @@ async function doFlushToDisk(): Promise<void> {
 
 /**
  * Register or update an app's configuration.
+ * Performs deep merge of routers, services, and middlewares.
  */
 export function register(appName: string, config: Partial<TraefikConfigYamlFormat>): void {
     const existing = registry.get(appName) ?? {};
 
+    // Deep merge each section to preserve existing routers/services/middlewares
     const merged: TraefikConfigYamlFormat = {
-        http: { ...existing.http, ...config.http },
-        tcp: { ...existing.tcp, ...config.tcp },
-        udp: { ...existing.udp, ...config.udp },
+        http: (existing.http || config.http) ? {
+            routers: { ...existing.http?.routers, ...config.http?.routers },
+            services: { ...existing.http?.services, ...config.http?.services },
+            middlewares: { ...existing.http?.middlewares, ...config.http?.middlewares },
+        } : undefined,
+        tcp: (existing.tcp || config.tcp) ? {
+            routers: { ...existing.tcp?.routers, ...config.tcp?.routers },
+            services: { ...existing.tcp?.services, ...config.tcp?.services },
+        } : undefined,
+        udp: (existing.udp || config.udp) ? {
+            services: { ...existing.udp?.services, ...config.udp?.services },
+        } : undefined,
     };
 
     registry.set(appName, merged);
@@ -246,4 +269,5 @@ export function _resetForTesting(): void {
     registry.clear();
     outputFile = null;
     pendingFlush = null;
+    tempFilesCleanedUp = false;
 }

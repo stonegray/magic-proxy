@@ -1,56 +1,57 @@
 # Adding a new proxy backend
 
-magic-proxy is more or less setup for being fully proxy-agnostic. 
+magic-proxy supports pluggable proxy backends.
 
-Summary
-- Backends are loaded dynamically by [`loadBackend`](src/backends/backendPlugin.ts) and must match the backend shape defined by [`BackendModule`](src/backends/backendPlugin.ts).
-- The platform initializes the selected backend via [`initialize`](src/backends/backendPlugin.ts) (which is called from [`startApp`](src/index.ts) after config is loaded with [`loadConfigFile`](src/config.ts) and validated by [`validateConfig`](src/config.ts)).
+## Summary
+- Backends are loaded dynamically by `loadBackend` in `backendPlugin.ts`
+- Backends must implement the `BackendModule` interface exported from `backendPlugin.ts`
+- The platform initializes the selected backend via `initialize()` during startup
 
-Backend API (required)
-- Export an object that implements the [`BackendModule`](src/backends/backendPlugin.ts) shape:
-  - initialize(config?: [`MagicProxyConfigFile`](src/types/config.d.ts)): Promise<void>
-  - addProxiedApp(entry: [`HostEntry`](src/types/host.d.ts)): Promise<void>
-  - removeProxiedApp(appName: string): Promise<void>
-  - getStatus(): Promise<{ registered?: string[]; outputFile?: string | null; [key: string]: unknown }>
+## Backend API (required)
 
-Practical guidance / checklist
-1. Module location & loading
-   - Add a module under `src/backends/<your-backend>/` and export the required functions.
-   - Add a case in [`loadBackend`](src/backends/backendPlugin.ts) to dynamically import your module by `proxyBackend` name.
+Export a module that implements the `BackendModule` interface:
 
-2. Initialization
-   - Load any backend-specific configuration from the provided [`MagicProxyConfigFile`](src/types/config.d.ts).
-   - Validate required config and fail clearly (throw or log + exit). See the [`traefik`](src/backends/traefik/traefik.ts) behavior for examples.
-   - Set up any on-disk output paths or runtime state the backend needs.
+```typescript
+interface BackendModule {
+    initialize(config?: MagicProxyConfigFile): Promise<void>;
+    addProxiedApp(entry: HostEntry): Promise<void>;
+    removeProxiedApp(appName: string): Promise<void>;
+    getStatus(): Promise<BackendStatus>;
+}
+```
 
-3. Registry / state & atomic writes
-   - Provide deterministic IDs for registered apps so getStatus and subsequent calls are stable.
-   - If writing files (e.g., dynamic proxy config): write atomically (tmp file + rename) and validate output where possible. See [`register`](src/backends/traefik/traefikManager.ts) and [`flushToDisk`](src/backends/traefik/traefikManager.ts) for patterns.
+## Implementation Checklist
 
-4. addProxiedApp / removeProxiedApp behavior
-   - Accept a [`HostEntry`](src/types/host.d.ts) and perform idempotent registration.
-   - Ensure remove cleans up state so `getStatus()` reflects current registrations.
+1. **Module location & loading**
+   - Add a module under `src/backends/<your-backend>/`
+   - Add a case in `loadBackend()` to dynamically import your module
 
-5. getStatus
-   - Return an object containing `registered` (array of app names) and optionally `outputFile` (or other runtime metadata).
+2. **Initialization**
+   - Load backend-specific configuration from `MagicProxyConfigFile`
+   - Validate required config and fail clearly (throw or log + exit)
 
-6. Tests
-   - Add unit tests covering:
-     - Template loading and rendering.
-     - Registration/unregistration behavior.
-     - Output format validation (if generating files).
-   - Reuse helpers in [test/helpers/mockHelpers.ts](test/helpers/mockHelpers.ts) (FS mocks like `setupFSMocks` and `mockFileWrite`) and follow existing test patterns (see [test/legacy/backend.test.ts](test/legacy/backend.test.ts) and [test/legacy/traefik-file.test.ts](test/legacy/traefik-file.test.ts)).
+3. **Registry & atomic writes**
+   - Provide deterministic IDs for registered apps
+   - Write files atomically (tmp file + rename) and validate output
 
-7. Config schema
-   - If new config fields are required, update [`src/types/config.d.ts`](src/types/config.d.ts) and ensure [`validateConfig`](src/config.ts) accepts the backend name (add to valid backends if needed).
+4. **addProxiedApp / removeProxiedApp**
+   - Accept a `HostEntry` and perform idempotent registration
+   - Ensure remove cleans up state so `getStatus()` reflects current registrations
 
-8. Error handling & startup
-   - Be explicit on fatal vs recoverable errors. The application startup (`startApp` in [`src/index.ts`](src/index.ts)) will exit on uncaught initialization errors; handle accordingly.
+5. **getStatus**
+   - Return an object with `registered` (array of app names) and optionally `outputFile`
 
-Examples & references
-- Reference backend implementation: [`src/backends/traefik/traefik.ts`](src/backends/traefik/traefik.ts)
-- Manager utilities: [`src/backends/traefik/traefikManager.ts`](src/backends/traefik/traefikManager.ts)
-- Backend plugin loader and API: [`src/backends/backendPlugin.ts`](src/backends/backendPlugin.ts)
-- Types: [`MagicProxyConfigFile`](src/types/config.d.ts), [`HostEntry`](src/types/host.d.ts)
+6. **Tests**
+   - Add unit tests for template loading/rendering, registration, and output validation
+   - Reuse helpers in `test/helpers/mockHelpers.ts`
 
-If you want, I can scaffold a minimal backend module (with tests) using these patterns.
+7. **Config schema**
+   - Update `src/types/config.d.ts` if new config fields are required
+   - Update `validateConfig()` to accept the backend name
+
+## Reference Implementation
+
+See the Traefik backend:
+- `src/backends/traefik/traefik.ts` - Main backend module
+- `src/backends/traefik/traefikManager.ts` - Registry and file management
+- `src/backends/backendPlugin.ts` - Plugin loader and interface

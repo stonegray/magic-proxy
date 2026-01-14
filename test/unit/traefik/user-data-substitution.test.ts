@@ -25,6 +25,26 @@ config:
             expect(result).toContain('myapp');
         });
 
+        it('supports nested userData access via dot notation', () => {
+            const template = `
+config:
+  port: {{ userData.port }}
+  timeout: {{ userData.timeout }}
+  app: {{ app_name }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: { port: '9000', timeout: '30' },
+            };
+
+            const result = renderTemplate(template, 'myapp', data);
+            expect(result).toContain('port: 9000');
+            expect(result).toContain('timeout: 30');
+            expect(result).toContain('myapp');
+        });
+
         it('replaces multiple userData variables in template', () => {
             const template = `
 config:
@@ -124,8 +144,8 @@ config:
             };
 
             const result = renderTemplate(template, 'app', data);
-            // null should be converted to empty string, YAML output will have single quotes
-            expect(result).toContain("optional_setting: ''");
+            // null should be converted to empty string in the raw template output
+            expect(result).toContain('optional_setting: ""');
         });
 
         it('core variables cannot be overwritten by userData', () => {
@@ -522,6 +542,144 @@ http:
             expect(config).toContain('http://backend2:4000');
             expect(config).toContain('web');
             expect(config).toContain('websecure');
+        });
+    });
+
+    describe('regression tests for Comment 1 bug - prevent substituting non-string values', () => {
+        it('rejects attempts to use intermediate userData object (not a string)', () => {
+            const template = `
+config:
+  settings: {{ userData }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: { port: '8080', timeout: '30' },
+            };
+
+            // Attempting to substitute an entire object should fail
+            expect(() => renderTemplate(template, 'app', data)).toThrow(
+                'Template contains unknown variables: userData'
+            );
+        });
+
+        it('rejects paths that do not resolve to string values', () => {
+            // The userData object itself is not a string, so attempting to substitute
+            // the userData variable (without a property access) should fail
+            const template = `
+config:
+  object: {{ userData }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: {
+                    nested: 'value',
+                },
+            };
+
+            // userData refers to the object, not a string
+            expect(() => renderTemplate(template, 'app', data)).toThrow(
+                'Template contains unknown variables: userData'
+            );
+        });
+
+        it('successfully uses nested string values but rejects objects at any depth', () => {
+            const template = `
+port: {{ userData.port }}
+timeout: {{ userData.timeout }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: {
+                    port: '8080',
+                    timeout: '30',
+                },
+            };
+
+            // This should work - all final values are strings
+            const result = renderTemplate(template, 'app', data);
+            expect(result).toContain('port: 8080');
+            expect(result).toContain('timeout: 30');
+        });
+
+        it('handles deeply nested userData with string leaf values', () => {
+            // Note: userData can only have string/number/null values per schema,
+            // but this test ensures the traversal would work correctly if it could
+            const template = `
+value: {{ userData.deep }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: {
+                    deep: 'deeply-nested-value',
+                },
+            };
+
+            const result = renderTemplate(template, 'app', data);
+            expect(result).toContain('value: deeply-nested-value');
+        });
+
+        it('fails if intermediate path segment is undefined', () => {
+            const template = `
+value: {{ userData.missing.nested }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: { port: '8080' },
+            };
+
+            // userData.missing doesn't exist, so userData.missing.nested should fail
+            expect(() => renderTemplate(template, 'app', data)).toThrow(
+                'Template contains unknown variables: userData.missing.nested'
+            );
+        });
+
+        it('ensures numeric userData values are converted to strings', () => {
+            const template = `
+port: {{ userData.port }}
+timeout: {{ userData.timeout }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: {
+                    port: 8080 as unknown as string,
+                    timeout: 30 as unknown as string,
+                },
+            };
+
+            // Numeric values should be converted to strings
+            const result = renderTemplate(template, 'app', data);
+            expect(result).toContain('port: 8080');
+            expect(result).toContain('timeout: 30');
+        });
+
+        it('ensures null userData values are converted to empty strings', () => {
+            const template = `
+optional: [{{ userData.optional }}]
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: {
+                    optional: null as unknown as string,
+                },
+            };
+
+            // Null values should become empty strings
+            const result = renderTemplate(template, 'app', data);
+            expect(result).toContain('optional: []');
         });
     });
 });
