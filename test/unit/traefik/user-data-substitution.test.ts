@@ -25,6 +25,26 @@ config:
             expect(result).toContain('myapp');
         });
 
+        it('supports nested userData access via dot notation', () => {
+            const template = `
+config:
+  port: {{ userData.port }}
+  timeout: {{ userData.timeout }}
+  app: {{ app_name }}
+`;
+            const data: XMagicProxyData = {
+                template: 'test',
+                target: 'http://backend:3000',
+                hostname: 'example.com',
+                userData: { port: '9000', timeout: '30' },
+            };
+
+            const result = renderTemplate(template, 'myapp', data);
+            expect(result).toContain('port: 9000');
+            expect(result).toContain('timeout: 30');
+            expect(result).toContain('myapp');
+        });
+
         it('replaces multiple userData variables in template', () => {
             const template = `
 config:
