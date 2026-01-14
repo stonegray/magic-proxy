@@ -75,21 +75,33 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
     const unknownVariables: string[] = [];
 
     /**
-     * Get a value from context, supporting nested property access with dot notation.
-     * e.g., "userData.foo" returns context.userData.foo
+     * Resolve a template variable path to its string value.
+     * 
+     * Supports dot notation for nested access: "userData.port" traverses
+     * context.userData.port. The traversal walks through intermediate objects
+     * until it reaches the final property, which must be a string.
+     * 
+     * @example
+     * // With context = { userData: { port: "8080" }, app_name: "myapp" }
+     * getContextValue("app_name")      // => "myapp"
+     * getContextValue("userData.port") // => "8080" (traverses into userData object)
+     * getContextValue("userData")      // => undefined (not a string)
+     * getContextValue("missing")       // => undefined
      */
     function getContextValue(path: string): string | undefined {
         const parts = path.split('.');
-        let value: unknown = context;
+        let current: unknown = context;
 
+        // Traverse the path through nested objects
         for (const part of parts) {
-            if (value == null || typeof value !== 'object') {
+            if (current == null || typeof current !== 'object') {
                 return undefined;
             }
-            value = (value as Record<string, unknown>)[part];
+            current = (current as Record<string, unknown>)[part];
         }
 
-        return typeof value === 'string' ? value : undefined;
+        // Only return string values - intermediate objects are not valid substitutions
+        return typeof current === 'string' ? current : undefined;
     }
 
     // Replace all {{ key }} occurrences
