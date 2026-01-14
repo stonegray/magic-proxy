@@ -77,6 +77,7 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
     /**
      * Get a value from context, supporting nested property access with dot notation.
      * e.g., "userData.foo" returns context.userData.foo
+     * Converts primitives (string, number, boolean) to strings for template substitution.
      */
     function getContextValue(path: string): string | undefined {
         const parts = path.split('.');
@@ -89,7 +90,11 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
             value = (value as Record<string, unknown>)[part];
         }
 
-        return typeof value === 'string' ? value : undefined;
+        // Convert primitives to strings, reject objects/arrays/functions
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            return String(value);
+        }
+        return undefined;
     }
 
     // Replace all {{ key }} occurrences
