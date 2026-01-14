@@ -31,8 +31,18 @@ let pendingFlush: {
 
 /**
  * Merge two records, with source values overwriting target values.
+ * Logs a warning if any keys would be overwritten.
  */
-function mergeRecord<T>(target: Record<string, T> = {}, source: Record<string, T> = {}): Record<string, T> {
+function mergeRecord<T>(target: Record<string, T> = {}, source: Record<string, T> = {}, section?: string): Record<string, T> {
+    if (section) {
+        const collisions = Object.keys(source).filter(key => key in target);
+        if (collisions.length > 0) {
+            log.warn({
+                message: 'Config name collision detected - values will be overwritten',
+                data: { section, collisions }
+            });
+        }
+    }
     return { ...target, ...source };
 }
 
@@ -46,22 +56,22 @@ function buildCombinedConfig(): TraefikConfigYamlFormat {
         // HTTP section
         if (cfg.http?.routers || cfg.http?.services || cfg.http?.middlewares) {
             combined.http ??= {};
-            combined.http.routers = mergeRecord(combined.http.routers, cfg.http.routers);
-            combined.http.services = mergeRecord(combined.http.services, cfg.http.services);
-            combined.http.middlewares = mergeRecord(combined.http.middlewares, cfg.http.middlewares);
+            combined.http.routers = mergeRecord(combined.http.routers, cfg.http.routers, 'http.routers');
+            combined.http.services = mergeRecord(combined.http.services, cfg.http.services, 'http.services');
+            combined.http.middlewares = mergeRecord(combined.http.middlewares, cfg.http.middlewares, 'http.middlewares');
         }
 
         // TCP section
         if (cfg.tcp?.routers || cfg.tcp?.services) {
             combined.tcp ??= {};
-            combined.tcp.routers = mergeRecord(combined.tcp.routers, cfg.tcp.routers);
-            combined.tcp.services = mergeRecord(combined.tcp.services, cfg.tcp.services);
+            combined.tcp.routers = mergeRecord(combined.tcp.routers, cfg.tcp.routers, 'tcp.routers');
+            combined.tcp.services = mergeRecord(combined.tcp.services, cfg.tcp.services, 'tcp.services');
         }
 
         // UDP section
         if (cfg.udp?.services) {
             combined.udp ??= {};
-            combined.udp.services = mergeRecord(combined.udp.services, cfg.udp.services);
+            combined.udp.services = mergeRecord(combined.udp.services, cfg.udp.services, 'udp.services');
         }
     }
 
