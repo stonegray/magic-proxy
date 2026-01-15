@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getErrorMessage, detectCollisions } from '../../../src/backends/traefik/helpers';
 
-describe('Traefik Helpers', () => {
+describe('Traefik helpers', () => {
     describe('getErrorMessage', () => {
         it('extracts message from Error object', () => {
             const error = new Error('Something went wrong');
@@ -121,7 +121,6 @@ describe('Traefik Helpers', () => {
             const target = { a: 1, b: 2, c: 3 };
             const source = { c: 30, a: 10, b: 20 };
             const collisions = detectCollisions(target, source);
-            // Object.keys() order in modern JS follows insertion order
             expect(collisions).toEqual(['c', 'a', 'b']);
         });
     });
