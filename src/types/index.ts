@@ -1,6 +1,5 @@
-// Re-export all types from their respective modules for convenient importing
+// Re-export all types from their respective modules
 export * from './config';
 export * from './docker';
 export * from './host';
-export * from '../backends/traefik/types/traefik';
 export * from './xmagic';

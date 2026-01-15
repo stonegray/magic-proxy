@@ -1,4 +1,5 @@
 import yaml from 'js-yaml';
+import { getErrorMessage } from './helpers';
 
 /** Allowed top-level keys in Traefik dynamic config */
 const ALLOWED_TOP_KEYS = new Set(['http', 'tcp', 'udp']);
@@ -60,7 +61,7 @@ export function validateGeneratedConfig(yamlText: string): ValidationResult {
     try {
         parsed = yaml.load(yamlText);
     } catch (err) {
-        return { valid: false, error: `Invalid YAML: ${err instanceof Error ? err.message : String(err)}` };
+        return { valid: false, error: `Invalid YAML: ${getErrorMessage(err)}` };
     }
 
     // Allow empty config

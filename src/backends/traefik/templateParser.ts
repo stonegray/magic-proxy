@@ -1,6 +1,7 @@
 import yaml from 'js-yaml';
 import { XMagicProxyData } from '../../types/xmagic';
 import { zone } from '../../logging/zone';
+import { getErrorMessage } from './helpers';
 
 const log = zone('backends.traefik.template');
 
@@ -17,10 +18,18 @@ const VALID_KEY_PATTERN = /^[a-zA-Z0-9_]+$/;
  * - Flat keys: {{ port }} (for backward compatibility)
  * - Nested access: {{ userData.port }} (explicit namespace)
  */
-function buildContext(appName: string, data: XMagicProxyData): Record<string, any> {
+type Context = {
+    app_name: string;
+    hostname: string;
+    target_url: string;
+    userData: Record<string, string>;
+    [key: string]: string | Record<string, string>;
+};
+
+function buildContext(appName: string, data: XMagicProxyData): Context {
     const CORE_KEYS = new Set(['app_name', 'hostname', 'target_url', 'userData']);
     
-    const context: Record<string, any> = {
+    const context: Context = {
         app_name: appName,
         hostname: data.hostname,
         target_url: data.target,
@@ -51,7 +60,7 @@ function buildContext(appName: string, data: XMagicProxyData): Record<string, an
  * @param template - The template content with {{ variable }} placeholders
  * @param appName - The application name
  * @param data - The proxy configuration data
- * @returns The rendered template as normalized YAML
+ * @returns The rendered template as a string (for testing) or use renderTemplateParsed for parsed object
  * @throws Error if unknown template variables are encountered
  */
 export function renderTemplate(template: string, appName: string, data: XMagicProxyData): string {
@@ -68,19 +77,24 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
     /**
      * Get a value from context, supporting nested property access with dot notation.
      * e.g., "userData.foo" returns context.userData.foo
+     * Converts primitives (string, number, boolean) to strings for template substitution.
      */
     function getContextValue(path: string): string | undefined {
         const parts = path.split('.');
-        let value: any = context;
-        
+        let value: unknown = context;
+
         for (const part of parts) {
             if (value == null || typeof value !== 'object') {
                 return undefined;
             }
-            value = value[part];
+            value = (value as Record<string, unknown>)[part];
         }
-        
-        return value == null ? undefined : String(value);
+
+        // Convert primitives to strings, reject objects/arrays/functions
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            return String(value);
+        }
+        return undefined;
     }
 
     // Replace all {{ key }} occurrences
@@ -102,12 +116,33 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
         throw new Error(message);
     }
 
-    // Parse and re-dump for consistent YAML formatting
+    return rendered;
+}
+
+/** Result from rendering a template with both raw string and parsed object */
+export type RenderResult<T> = {
+    raw: string;
+    parsed: T;
+};
+
+/**
+ * Render a template and parse it as YAML.
+ * Returns both the raw rendered string and the parsed object.
+ * 
+ * @param template - The template content with {{ variable }} placeholders
+ * @param appName - The application name
+ * @param data - The proxy configuration data
+ * @returns Object containing both raw string and parsed YAML
+ * @throws Error if unknown template variables are encountered or YAML is invalid
+ */
+export function renderTemplateParsed<T = unknown>(template: string, appName: string, data: XMagicProxyData): RenderResult<T> {
+    const raw = renderTemplate(template, appName, data);
+    
     try {
-        const parsed = yaml.load(rendered);
-        return yaml.dump(parsed, { noRefs: true, skipInvalid: true });
+        const parsed = yaml.load(raw) as T;
+        return { raw, parsed };
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = getErrorMessage(err);
         log.error({
             message: 'Template produced invalid YAML',
             data: { appName, error: message }
