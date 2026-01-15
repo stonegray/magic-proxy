@@ -23,7 +23,7 @@ export function getDefaultConfigFile(): string {
 export const DEFAULT_CONFIG_FILE = getDefaultConfigFile();
 
 /** Valid proxy backend names */
-const VALID_BACKENDS = ['traefik'] as const;
+const VALID_BACKENDS: readonly ['traefik'] = ['traefik'];
 
 /**
  * Load and validate a configuration file.

@@ -79,29 +79,33 @@ export function renderTemplate(template: string, appName: string, data: XMagicPr
      * 
      * Supports dot notation for nested access: "userData.port" traverses
      * context.userData.port. The traversal walks through intermediate objects
-     * until it reaches the final property, which must be a string.
+     * until it reaches the final property, which must be a primitive value.
+     * Converts primitives (string, number, boolean) to strings for template substitution.
      * 
      * @example
-     * // With context = { userData: { port: "8080" }, app_name: "myapp" }
+     * // With context = { userData: { port: 8080 }, app_name: "myapp" }
      * getContextValue("app_name")      // => "myapp"
-     * getContextValue("userData.port") // => "8080" (traverses into userData object)
-     * getContextValue("userData")      // => undefined (not a string)
+     * getContextValue("userData.port") // => "8080" (traverses into userData object, converts number to string)
+     * getContextValue("userData")      // => undefined (not a primitive)
      * getContextValue("missing")       // => undefined
      */
     function getContextValue(path: string): string | undefined {
         const parts = path.split('.');
-        let current: unknown = context;
+        let value: unknown = context;
 
         // Traverse the path through nested objects
         for (const part of parts) {
-            if (current == null || typeof current !== 'object') {
+            if (value == null || typeof value !== 'object') {
                 return undefined;
             }
-            current = (current as Record<string, unknown>)[part];
+            value = (value as Record<string, unknown>)[part];
         }
 
-        // Only return string values - intermediate objects are not valid substitutions
-        return typeof current === 'string' ? current : undefined;
+        // Convert primitives to strings, reject objects/arrays/functions
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            return String(value);
+        }
+        return undefined;
     }
 
     // Replace all {{ key }} occurrences
